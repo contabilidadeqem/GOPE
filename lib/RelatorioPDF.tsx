@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line, Text as SvgText } from '@react-pdf/renderer';
 import { NOMES_MESES, formatBRL, type LinhaAnual } from './reportData';
 import { CapaPaisagem, CabecalhoPagina, paginaBaseStyles, CORES, BlocoConfiabilidadeAssinaturas } from './pdfShared';
 
@@ -69,23 +69,83 @@ function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: st
   );
 }
 
+function valorCompacto(v: number): string {
+  if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
+  if (v === 0) return '';
+  return v.toFixed(0);
+}
+
 function GraficoBarras({ dados, largura, altura }: { dados: { mes: string; receita: number; despesa: number }[]; largura: number; altura: number }) {
   const max = Math.max(1, ...dados.flatMap((d) => [d.receita, d.despesa]));
   const larguraGrupo = largura / dados.length;
-  const barraW = larguraGrupo / 3.2;
-  const areaAltura = altura - 20;
+  const barraW = larguraGrupo / 3.4;
+  const areaAltura = altura - 16;
+  const alturaUtil = areaAltura - 12; // reserva espaço no topo para o rótulo do valor
 
   return (
-    <Svg width={largura} height={altura}>
+    <Svg width={largura} height={altura + 12}>
       <Line x1={0} y1={areaAltura} x2={largura} y2={areaAltura} stroke={CORES.borda} strokeWidth={1} />
       {dados.map((d, i) => {
-        const x = i * larguraGrupo + 8;
-        const hReceita = (d.receita / max) * areaAltura;
-        const hDespesa = (d.despesa / max) * areaAltura;
+        const x = i * larguraGrupo + 6;
+        const hReceita = (d.receita / max) * alturaUtil;
+        const hDespesa = (d.despesa / max) * alturaUtil;
         return (
           <React.Fragment key={d.mes}>
             <Rect x={x} y={areaAltura - hReceita} width={barraW} height={hReceita} fill={CORES.verde} />
+            {d.receita > 0 && (
+              <SvgText x={x + barraW / 2} y={areaAltura - hReceita - 3} style={{ fontSize: 5.5 }} textAnchor="middle" fill={CORES.texto}>
+                {valorCompacto(d.receita)}
+              </SvgText>
+            )}
             <Rect x={x + barraW + 2} y={areaAltura - hDespesa} width={barraW} height={hDespesa} fill={CORES.vermelho} />
+            {d.despesa > 0 && (
+              <SvgText x={x + barraW + 2 + barraW / 2} y={areaAltura - hDespesa - 3} style={{ fontSize: 5.5 }} textAnchor="middle" fill={CORES.texto}>
+                {valorCompacto(d.despesa)}
+              </SvgText>
+            )}
+            <SvgText x={x + barraW + 1} y={areaAltura + 10} style={{ fontSize: 6 }} textAnchor="middle" fill={CORES.texto}>
+              {d.mes}
+            </SvgText>
+          </React.Fragment>
+        );
+      })}
+    </Svg>
+  );
+}
+
+function GraficoOrcadoExecutado({
+  itens, largura, altura,
+}: { itens: { rotulo: string; orcado: number; executado: number; cor: string }[]; largura: number; altura: number }) {
+  const max = Math.max(1, ...itens.flatMap((it) => [it.orcado, it.executado]));
+  const larguraGrupo = largura / itens.length;
+  const barraW = larguraGrupo / 3.2;
+  const areaAltura = altura - 16;
+  const alturaUtil = areaAltura - 14;
+
+  return (
+    <Svg width={largura} height={altura + 12}>
+      <Line x1={0} y1={areaAltura} x2={largura} y2={areaAltura} stroke={CORES.borda} strokeWidth={1} />
+      {itens.map((it, i) => {
+        const x = i * larguraGrupo + (larguraGrupo - (barraW * 2 + 4)) / 2;
+        const hOrcado = (it.orcado / max) * alturaUtil;
+        const hExecutado = (it.executado / max) * alturaUtil;
+        return (
+          <React.Fragment key={it.rotulo}>
+            <Rect x={x} y={areaAltura - hOrcado} width={barraW} height={hOrcado} fill={CORES.begeMedio} stroke={it.cor} strokeWidth={1} />
+            {it.orcado > 0 && (
+              <SvgText x={x + barraW / 2} y={areaAltura - hOrcado - 4} style={{ fontSize: 6.5 }} textAnchor="middle" fill={CORES.texto}>
+                {formatBRL(it.orcado)}
+              </SvgText>
+            )}
+            <Rect x={x + barraW + 4} y={areaAltura - hExecutado} width={barraW} height={hExecutado} fill={it.cor} />
+            {it.executado > 0 && (
+              <SvgText x={x + barraW + 4 + barraW / 2} y={areaAltura - hExecutado - 4} style={{ fontSize: 6.5 }} textAnchor="middle" fill={CORES.texto}>
+                {formatBRL(it.executado)}
+              </SvgText>
+            )}
+            <SvgText x={x + barraW + 2} y={areaAltura + 10} style={{ fontSize: 7 }} textAnchor="middle" fill={CORES.texto}>
+              {it.rotulo}
+            </SvgText>
           </React.Fragment>
         );
       })}
@@ -117,8 +177,6 @@ export function RelatorioPDF({
     receita: linhasReceita.reduce((s, l) => s + l.porMes[i], 0),
     despesa: linhasDespesa.reduce((s, l) => s + l.porMes[i], 0),
   }));
-
-  const topDespesas = [...linhasDespesa].sort((a, b) => b.realizadoAteMes - a.realizadoAteMes).slice(0, 8);
 
   return (
     <Document>
@@ -157,40 +215,48 @@ export function RelatorioPDF({
           </View>
         </View>
 
-        <Text style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>Receita x Despesa por mês</Text>
-        <View style={{ marginBottom: 6 }}>
-          <GraficoBarras dados={dadosGrafico} largura={720} altura={170} />
-        </View>
-        <View style={{ flexDirection: 'row', gap: 16, marginBottom: 16 }}>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 8, height: 8, backgroundColor: CORES.verde }} />
-            <Text style={{ fontSize: 8 }}>Receita</Text>
-          </View>
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
-            <View style={{ width: 8, height: 8, backgroundColor: CORES.vermelho }} />
-            <Text style={{ fontSize: 8 }}>Despesa</Text>
-          </View>
-        </View>
-
-        <Text style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>Maiores despesas do período</Text>
-        <View style={styles.table}>
-          <View style={styles.trHead}>
-            <Text style={[styles.thConta, { width: 300 }]}>Conta</Text>
-            <Text style={[styles.thTotal, { width: 110 }]}>Realizado</Text>
-            <Text style={styles.thPct}>%</Text>
-          </View>
-          {topDespesas.map((l) => (
-            <View style={styles.tr} key={l.conta.id}>
-              <Text style={[styles.tdConta, { width: 300 }]}>{l.conta.descricao}</Text>
-              <Text style={[styles.tdTotal, { width: 110 }]}>{formatBRL(l.realizadoAteMes)}</Text>
-              <Text style={styles.tdPct}>
-                {totalRealizadoDespesa > 0 ? ((l.realizadoAteMes / totalRealizadoDespesa) * 100).toFixed(0) : 0}%
-              </Text>
+        <View style={{ flexDirection: 'row', gap: 40 }}>
+          <View>
+            <Text style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>Receita x Despesa por mês</Text>
+            <GraficoBarras dados={dadosGrafico} largura={420} altura={110} />
+            <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, backgroundColor: CORES.verde }} />
+                <Text style={{ fontSize: 8 }}>Receita</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, backgroundColor: CORES.vermelho }} />
+                <Text style={{ fontSize: 8 }}>Despesa</Text>
+              </View>
             </View>
-          ))}
+          </View>
+
+          <View>
+            <Text style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>Orçado x Executado no período</Text>
+            <GraficoOrcadoExecutado
+              largura={280}
+              altura={110}
+              itens={[
+                { rotulo: 'Receita', orcado: totalOrcadoReceita, executado: totalRealizadoReceita, cor: CORES.verde },
+                { rotulo: 'Despesa', orcado: totalOrcadoDespesa, executado: totalRealizadoDespesa, cor: CORES.vermelho },
+              ]}
+            />
+            <View style={{ flexDirection: 'row', gap: 16, marginTop: 8 }}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, backgroundColor: CORES.begeMedio, borderWidth: 1, borderColor: CORES.texto }} />
+                <Text style={{ fontSize: 8 }}>Orçado no ano</Text>
+              </View>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <View style={{ width: 8, height: 8, backgroundColor: CORES.vermelho }} />
+                <Text style={{ fontSize: 8 }}>Executado até {NOMES_MESES[ateMesIndex]}</Text>
+              </View>
+            </View>
+          </View>
         </View>
 
-        <BlocoConfiabilidadeAssinaturas />
+        <View style={{ marginTop: 20 }}>
+          <BlocoConfiabilidadeAssinaturas />
+        </View>
 
         <Text style={paginaBaseStyles.footer} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
       </Page>
