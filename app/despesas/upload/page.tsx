@@ -102,6 +102,47 @@ export default function UploadDespesaPage() {
 
   const pendentesSemConta = fila.filter((it) => it.status === 'pendente' && !it.conta_id).length;
 
+  const [mostrarManual, setMostrarManual] = useState(false);
+  const [manual, setManual] = useState({ conta_id: '', valor: '', data_pagamento: '', fornecedor: '', descricao_documento: '' });
+  const [salvandoManual, setSalvandoManual] = useState(false);
+
+  async function salvarLancamentoManual() {
+    if (!manual.conta_id || !manual.valor) return;
+    setSalvandoManual(true);
+    await carregarContas();
+    const res = await fetch('/api/lancamentos', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        conta_id: manual.conta_id,
+        competencia,
+        valor: parseFloat(manual.valor),
+        data_pagamento: manual.data_pagamento || null,
+        fornecedor: manual.fornecedor || null,
+        descricao_documento: manual.descricao_documento || null,
+      }),
+    }).then((r) => r.json());
+
+    if (res.lancamento) {
+      setFila((prev) => [
+        {
+          id: res.lancamento.id,
+          arquivo_nome: '(lançamento manual, sem recibo)',
+          conta_id: res.lancamento.conta_id,
+          valor: Number(res.lancamento.valor),
+          data_pagamento: res.lancamento.data_pagamento,
+          fornecedor: res.lancamento.fornecedor,
+          status: 'confirmado',
+          contaEncontradaPelaPasta: true,
+        },
+        ...prev,
+      ]);
+      setManual({ conta_id: '', valor: '', data_pagamento: '', fornecedor: '', descricao_documento: '' });
+      setMostrarManual(false);
+    }
+    setSalvandoManual(false);
+  }
+
   return (
     <div>
       <div className="page-title">Lançar Despesas</div>
@@ -132,6 +173,49 @@ export default function UploadDespesaPage() {
             <div style={{ fontSize: 13 }}>Processando {progresso.atual} de {progresso.total}…</div>
           )}
         </div>
+      </div>
+
+      <div className="card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ margin: 0 }}>Lançamento sem recibo</h3>
+          <button
+            className="btn-secondary"
+            onClick={async () => {
+              await carregarContas();
+              setMostrarManual((v) => !v);
+            }}
+          >
+            {mostrarManual ? 'Cancelar' : '+ Novo lançamento manual'}
+          </button>
+        </div>
+        {mostrarManual && (
+          <div style={{ marginTop: 16, display: 'grid', gridTemplateColumns: '1.5fr 1fr 1fr 1fr auto', gap: 10, alignItems: 'end' }}>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, opacity: 0.7 }}>Conta</label>
+              <select value={manual.conta_id} onChange={(e) => setManual((m) => ({ ...m, conta_id: e.target.value }))}>
+                <option value="">— selecionar —</option>
+                {contas.map((c) => (
+                  <option key={c.id} value={c.id}>{c.codigo} · {c.descricao}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, opacity: 0.7 }}>Valor</label>
+              <input type="number" step="0.01" value={manual.valor} onChange={(e) => setManual((m) => ({ ...m, valor: e.target.value }))} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, opacity: 0.7 }}>Data pagamento</label>
+              <input type="date" value={manual.data_pagamento} onChange={(e) => setManual((m) => ({ ...m, data_pagamento: e.target.value }))} />
+            </div>
+            <div>
+              <label style={{ fontSize: 12, fontWeight: 700, opacity: 0.7 }}>Fornecedor</label>
+              <input value={manual.fornecedor} onChange={(e) => setManual((m) => ({ ...m, fornecedor: e.target.value }))} />
+            </div>
+            <button className="btn-primary" disabled={salvandoManual || !manual.conta_id || !manual.valor} onClick={salvarLancamentoManual}>
+              {salvandoManual ? 'Salvando…' : 'Salvar'}
+            </button>
+          </div>
+        )}
       </div>
 
       {fila.length > 0 && (

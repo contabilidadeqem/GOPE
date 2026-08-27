@@ -30,8 +30,9 @@ create table lancamentos_despesa (
   data_pagamento date,
   fornecedor text,
   descricao_documento text,
-  arquivo_path text not null,            -- caminho no Supabase Storage
-  arquivo_nome text not null,
+  arquivo_path text,                     -- caminho no Supabase Storage (null quando lançamento manual sem recibo)
+  arquivo_nome text,
+  origem text not null default 'upload' check (origem in ('upload', 'manual')),
   status text not null default 'pendente' check (status in ('pendente', 'confirmado')),
   extraido_por_ia jsonb,                 -- resposta bruta da IA, para auditoria
   criado_em timestamptz not null default now(),

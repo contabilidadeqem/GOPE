@@ -2,10 +2,12 @@ import { NextRequest, NextResponse } from 'next/server';
 import { supabaseServer } from '@/lib/supabase';
 
 // GET /api/receita?competencia=2026-02-01
+// GET /api/receita?ano=2026   -> traz o ano inteiro, para visão anual/sumário/PDF
 export async function GET(req: NextRequest) {
   const supabase = supabaseServer();
   const { searchParams } = new URL(req.url);
   const competencia = searchParams.get('competencia');
+  const ano = searchParams.get('ano');
 
   let query = supabase
     .from('lancamentos_receita')
@@ -13,6 +15,7 @@ export async function GET(req: NextRequest) {
     .order('criado_em', { ascending: false });
 
   if (competencia) query = query.eq('competencia', competencia);
+  if (ano) query = query.gte('competencia', `${ano}-01-01`).lte('competencia', `${ano}-12-01`);
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
