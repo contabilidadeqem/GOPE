@@ -92,6 +92,30 @@ export default function DashboardPage() {
               );
             })}
           </tbody>
+          <tfoot>
+            <tr style={{ background: 'var(--bege-medio)', fontWeight: 700 }}>
+              <td></td>
+              <td>TOTAL</td>
+              <td style={{ borderRight: '2px solid var(--dourado)' }}>
+                {formatBRL(linhas.reduce((s, l) => s + Number(l.conta.valor_orcado_2026), 0))}
+              </td>
+              {Array.from({ length: 12 }).map((_, i) => (
+                <td key={i} style={{ opacity: i > ateMesIndex ? 0.35 : 1 }}>
+                  {formatBRL(linhas.reduce((s, l) => s + l.porMes[i], 0))}
+                </td>
+              ))}
+              <td style={{ borderLeft: '2px solid var(--dourado)' }}>
+                {formatBRL(linhas.reduce((s, l) => s + l.realizadoAteMes, 0))}
+              </td>
+              <td>
+                {(() => {
+                  const totalOrcado = linhas.reduce((s, l) => s + Number(l.conta.valor_orcado_2026), 0);
+                  const totalRealizado = linhas.reduce((s, l) => s + l.realizadoAteMes, 0);
+                  return totalOrcado > 0 ? `${((totalRealizado / totalOrcado) * 100).toFixed(0)}%` : '0%';
+                })()}
+              </td>
+            </tr>
+          </tfoot>
         </table>
       </div>
     );
