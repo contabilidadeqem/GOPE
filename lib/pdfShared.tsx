@@ -66,7 +66,7 @@ export function CabecalhoPagina({ titulo, sub }: { titulo: string; sub: string }
 
 const assinaturaStyles = StyleSheet.create({
   container: { marginTop: 24 },
-  paragrafo: { fontSize: 8.5, lineHeight: 1.6, color: CORES.texto, textAlign: 'justify', marginBottom: 26 },
+  paragrafo: { fontSize: 8.5, lineHeight: 1.6, color: CORES.texto, textAlign: 'justify', marginBottom: 50 },
   linhaAssinaturas: { flexDirection: 'row', justifyContent: 'space-between', gap: 40 },
   bloco: { flex: 1, alignItems: 'center' },
   linha: { borderTopWidth: 1, borderTopColor: CORES.texto, width: '100%', marginBottom: 6 },
@@ -76,7 +76,7 @@ const assinaturaStyles = StyleSheet.create({
 
 export function BlocoConfiabilidadeAssinaturas() {
   return (
-    <View style={assinaturaStyles.container}>
+    <View style={assinaturaStyles.container} wrap={false}>
       <Text style={assinaturaStyles.paragrafo}>
         As informações apresentadas neste demonstrativo foram elaboradas com base nos registros contábeis, documentos fiscais e extratos bancários disponibilizados ao Grande Oriente de Pernambuco, refletendo fielmente a execução orçamentária até a competência informada. A veracidade e a integridade dos dados aqui apresentados são de responsabilidade conjunta da administração e do profissional de contabilidade abaixo identificados.
       </Text>

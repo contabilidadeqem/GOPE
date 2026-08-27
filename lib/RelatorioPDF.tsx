@@ -9,11 +9,13 @@ const styles = StyleSheet.create({
   tr: { flexDirection: 'row', borderTopWidth: 1, borderTopColor: CORES.borda },
   thCodigo: { width: 34, padding: 3, fontSize: 6.5, fontWeight: 700 },
   thConta: { width: 110, padding: 3, fontSize: 6.5, fontWeight: 700 },
+  thOrcado: { width: 58, padding: 3, fontSize: 6.5, fontWeight: 700, textAlign: 'right', borderRightWidth: 1.5, borderRightColor: CORES.dourado },
   thMes: { width: 46, padding: 3, fontSize: 6.5, fontWeight: 700, textAlign: 'right' },
   thTotal: { width: 62, padding: 3, fontSize: 6.5, fontWeight: 700, textAlign: 'right', backgroundColor: CORES.dourado },
   thPct: { width: 32, padding: 3, fontSize: 6.5, fontWeight: 700, textAlign: 'right' },
   tdCodigo: { width: 34, padding: 3, fontSize: 6.5 },
   tdConta: { width: 110, padding: 3, fontSize: 6.5 },
+  tdOrcado: { width: 58, padding: 3, fontSize: 6.5, textAlign: 'right', fontWeight: 700, borderRightWidth: 1.5, borderRightColor: CORES.dourado },
   tdMes: { width: 46, padding: 3, fontSize: 6.5, textAlign: 'right' },
   tdTotal: { width: 62, padding: 3, fontSize: 6.5, textAlign: 'right', fontWeight: 700, backgroundColor: '#faf3e6' },
   tdPct: { width: 32, padding: 3, fontSize: 6.5, textAlign: 'right' },
@@ -32,6 +34,7 @@ function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: st
         <View style={styles.trHead} fixed>
           <Text style={styles.thCodigo}>Código</Text>
           <Text style={styles.thConta}>Conta</Text>
+          <Text style={styles.thOrcado}>Orçado {'\n'}no ano</Text>
           {NOMES_MESES.map((m) => <Text key={m} style={styles.thMes}>{m}</Text>)}
           <Text style={styles.thTotal}>Até {NOMES_MESES[ateMesIndex]}</Text>
           <Text style={styles.thPct}>%</Text>
@@ -42,6 +45,7 @@ function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: st
             <View style={styles.tr} key={conta.id} wrap={false}>
               <Text style={styles.tdCodigo}>{conta.codigo}</Text>
               <Text style={styles.tdConta}>{conta.descricao}</Text>
+              <Text style={styles.tdOrcado}>{formatBRL(Number(conta.valor_orcado_2026))}</Text>
               {porMes.map((v, i) => <Text key={i} style={styles.tdMes}>{v > 0 ? formatBRL(v) : '—'}</Text>)}
               <Text style={styles.tdTotal}>{formatBRL(realizadoAteMes)}</Text>
               <Text style={styles.tdPct}>{pct.toFixed(0)}%</Text>
@@ -51,6 +55,7 @@ function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: st
         <View style={[styles.tr, { backgroundColor: CORES.begeMedio }]}>
           <Text style={[styles.tdCodigo, { fontWeight: 700 }]}></Text>
           <Text style={[styles.tdConta, { fontWeight: 700 }]}>TOTAL</Text>
+          <Text style={styles.tdOrcado}>{formatBRL(totalOrcado)}</Text>
           {Array.from({ length: 12 }).map((_, i) => (
             <Text key={i} style={styles.tdMes}>{formatBRL(linhas.reduce((s, l) => s + l.porMes[i], 0))}</Text>
           ))}

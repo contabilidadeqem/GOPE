@@ -33,20 +33,25 @@ export default function LoginPage() {
     <div style={{
       minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
       background: 'linear-gradient(135deg, var(--bege-claro), var(--bege-medio))',
+      padding: 20,
     }}>
-      <form onSubmit={entrar} className="card" style={{ width: 360 }}>
-        <div style={{ textAlign: 'center', marginBottom: 20 }}>
-          <div style={{ fontSize: 15, fontWeight: 800 }}>GRANDE ORIENTE DE PERNAMBUCO</div>
-          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 2 }}>Balancete Orçamentário</div>
+      <form onSubmit={entrar} className="card" style={{ width: '100%', maxWidth: 380 }}>
+        <div style={{ textAlign: 'center', marginBottom: 24 }}>
+          <div style={{ fontSize: 16, fontWeight: 800 }}>GRANDE ORIENTE DE PERNAMBUCO</div>
+          <div style={{ fontSize: 12, opacity: 0.7, marginTop: 4 }}>Balancete Orçamentário</div>
         </div>
 
-        <label style={{ fontSize: 12, fontWeight: 700, opacity: 0.7 }}>Usuário</label>
-        <input value={usuario} onChange={(e) => setUsuario(e.target.value)} style={{ marginBottom: 14, marginTop: 4 }} autoFocus />
+        <div className="field" style={{ marginBottom: 16 }}>
+          <label>Usuário</label>
+          <input value={usuario} onChange={(e) => setUsuario(e.target.value)} autoFocus style={{ width: '100%' }} />
+        </div>
 
-        <label style={{ fontSize: 12, fontWeight: 700, opacity: 0.7 }}>Senha</label>
-        <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} style={{ marginBottom: 14, marginTop: 4 }} />
+        <div className="field" style={{ marginBottom: 20 }}>
+          <label>Senha</label>
+          <input type="password" value={senha} onChange={(e) => setSenha(e.target.value)} style={{ width: '100%' }} />
+        </div>
 
-        {erro && <div style={{ color: 'var(--vermelho-institucional)', fontSize: 13, marginBottom: 12 }}>{erro}</div>}
+        {erro && <div style={{ color: 'var(--vermelho-institucional)', fontSize: 13, marginBottom: 16 }}>{erro}</div>}
 
         <button className="btn-primary" type="submit" disabled={entrando} style={{ width: '100%' }}>
           {entrando ? 'Entrando…' : 'Entrar'}
