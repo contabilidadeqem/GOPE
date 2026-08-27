@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line } from '@react-pdf/renderer';
 import { NOMES_MESES, formatBRL, type LinhaAnual } from './reportData';
-import { CapaPaisagem, CabecalhoPagina, paginaBaseStyles, CORES } from './pdfShared';
+import { CapaPaisagem, CabecalhoPagina, paginaBaseStyles, CORES, BlocoConfiabilidadeAssinaturas } from './pdfShared';
 
 const styles = StyleSheet.create({
   table: { display: 'flex', flexDirection: 'column', borderWidth: 1, borderColor: CORES.borda },
@@ -184,6 +184,8 @@ export function RelatorioPDF({
             </View>
           ))}
         </View>
+
+        <BlocoConfiabilidadeAssinaturas />
 
         <Text style={paginaBaseStyles.footer} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
       </Page>

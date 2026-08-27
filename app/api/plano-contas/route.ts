@@ -13,3 +13,25 @@ export async function GET(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ contas: data });
 }
+
+// PATCH /api/plano-contas  { id, valor_orcado_2026 }
+// Só o contador pode chamar isso (garantido pelo middleware + pela tela que só ele acessa)
+export async function PATCH(req: NextRequest) {
+  const supabase = supabaseServer();
+  const body = await req.json();
+  const { id, valor_orcado_2026 } = body;
+
+  if (!id || valor_orcado_2026 === undefined) {
+    return NextResponse.json({ error: 'id e valor_orcado_2026 são obrigatórios' }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from('plano_contas')
+    .update({ valor_orcado_2026 })
+    .eq('id', id)
+    .select('*')
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ conta: data });
+}

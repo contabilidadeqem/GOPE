@@ -63,3 +63,35 @@ export function CabecalhoPagina({ titulo, sub }: { titulo: string; sub: string }
     </View>
   );
 }
+
+const assinaturaStyles = StyleSheet.create({
+  container: { marginTop: 24 },
+  paragrafo: { fontSize: 8.5, lineHeight: 1.6, color: CORES.texto, textAlign: 'justify', marginBottom: 26 },
+  linhaAssinaturas: { flexDirection: 'row', justifyContent: 'space-between', gap: 40 },
+  bloco: { flex: 1, alignItems: 'center' },
+  linha: { borderTopWidth: 1, borderTopColor: CORES.texto, width: '100%', marginBottom: 6 },
+  nome: { fontSize: 9, fontWeight: 700 },
+  cargo: { fontSize: 8, opacity: 0.7, marginTop: 2 },
+});
+
+export function BlocoConfiabilidadeAssinaturas() {
+  return (
+    <View style={assinaturaStyles.container}>
+      <Text style={assinaturaStyles.paragrafo}>
+        As informações apresentadas neste demonstrativo foram elaboradas com base nos registros contábeis, documentos fiscais e extratos bancários disponibilizados ao Grande Oriente de Pernambuco, refletendo fielmente a execução orçamentária até a competência informada. A veracidade e a integridade dos dados aqui apresentados são de responsabilidade conjunta da administração e do profissional de contabilidade abaixo identificados.
+      </Text>
+      <View style={assinaturaStyles.linhaAssinaturas}>
+        <View style={assinaturaStyles.bloco}>
+          <View style={assinaturaStyles.linha} />
+          <Text style={assinaturaStyles.nome}>GERALDO LUCIANO DE LIRA COSTA</Text>
+          <Text style={assinaturaStyles.cargo}>Grão Mestre</Text>
+        </View>
+        <View style={assinaturaStyles.bloco}>
+          <View style={assinaturaStyles.linha} />
+          <Text style={assinaturaStyles.nome}>JARDEL QUEIROZ DA SILVA</Text>
+          <Text style={assinaturaStyles.cargo}>Contador Responsável</Text>
+        </View>
+      </View>
+    </View>
+  );
+}

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Svg, Path, Rect, Line } from '@react-pdf/renderer';
 import { NOMES_MESES, formatBRL, type LinhaGrupo } from './reportData';
-import { CapaPaisagem, CabecalhoPagina, paginaBaseStyles, CORES } from './pdfShared';
+import { CapaPaisagem, CabecalhoPagina, paginaBaseStyles, CORES, BlocoConfiabilidadeAssinaturas } from './pdfShared';
 
 const styles = StyleSheet.create({
   paragrafo: { fontSize: 10, lineHeight: 1.6, color: CORES.texto, marginBottom: 12, textAlign: 'justify' },
@@ -220,6 +220,9 @@ export function TransparenciaPDF({
         <View style={{ marginBottom: 16 }}><TabelaAnualGrupo linhas={gruposReceita} /></View>
         <Text style={{ fontSize: 10, fontWeight: 700, marginBottom: 6 }}>Despesas</Text>
         <TabelaAnualGrupo linhas={gruposDespesa} />
+
+        <BlocoConfiabilidadeAssinaturas />
+
         <Text style={paginaBaseStyles.footer} render={({ pageNumber, totalPages }) => `${pageNumber} / ${totalPages}`} fixed />
       </Page>
     </Document>

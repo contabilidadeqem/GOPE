@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { COOKIE_NAME, verifySession } from '@/lib/auth';
 
-const ROTAS_SOMENTE_CONTADOR_ESCRITA = ['/api/lancamentos', '/api/receita', '/api/extract-despesa'];
+const ROTAS_SOMENTE_CONTADOR_ESCRITA = ['/api/lancamentos', '/api/receita', '/api/extract-despesa', '/api/plano-contas'];
 
 export async function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;

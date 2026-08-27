@@ -22,6 +22,7 @@ export default function NavLinks({ role }: { role: Role }) {
           <div className="nav-divider" />
           <a className="nav-link" href="/despesas/upload">Lançar Despesas</a>
           <a className="nav-link" href="/receita">Lançar Receita</a>
+          <a className="nav-link" href="/plano-contas">Plano de Contas</a>
         </>
       )}
       <div className="nav-divider" />
