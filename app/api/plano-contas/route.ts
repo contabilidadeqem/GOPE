@@ -35,3 +35,34 @@ export async function PATCH(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ conta: data });
 }
+
+// POST /api/plano-contas  { codigo, descricao, tipo, valor_orcado_2026, pasta_nome?, grupo?, grupo_codigo? }
+export async function POST(req: NextRequest) {
+  const supabase = supabaseServer();
+  const body = await req.json();
+  const { codigo, descricao, tipo, valor_orcado_2026, pasta_nome, grupo, grupo_codigo } = body;
+
+  if (!codigo || !descricao || !tipo) {
+    return NextResponse.json({ error: 'codigo, descricao e tipo são obrigatórios' }, { status: 400 });
+  }
+  if (tipo !== 'receita' && tipo !== 'despesa') {
+    return NextResponse.json({ error: 'tipo deve ser receita ou despesa' }, { status: 400 });
+  }
+
+  const { data, error } = await supabase
+    .from('plano_contas')
+    .insert({
+      codigo,
+      descricao,
+      tipo,
+      valor_orcado_2026: valor_orcado_2026 ?? 0,
+      pasta_nome: pasta_nome || null,
+      grupo: grupo || null,
+      grupo_codigo: grupo_codigo || null,
+    })
+    .select('*')
+    .single();
+
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ conta: data });
+}
