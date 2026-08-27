@@ -3,12 +3,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, LabelList,
 } from 'recharts';
 import { montarMatrizAnual, NOMES_MESES, formatBRL, type Conta, type Lancamento } from '@/lib/reportData';
 
 const ANO = 2026;
 const CORES_DESPESA = ['#7a1f1f', '#a9822f', '#c9a24b', '#8a5a12', '#b5573a', '#6b4226', '#9c6b30', '#734c1f'];
+
+function valorCompacto(v: number): string {
+  if (!v) return '';
+  if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
+  return v.toFixed(0);
+}
 
 export default function SumarioPage() {
   const [contas, setContas] = useState<Conta[]>([]);
@@ -94,8 +100,12 @@ export default function SumarioPage() {
             <YAxis fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(v: number) => formatBRL(v)} />
             <Legend />
-            <Bar dataKey="Receita" fill="#3f7d4f" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="Despesa" fill="#7a1f1f" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="Receita" fill="#3f7d4f" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="Receita" position="top" formatter={valorCompacto} fontSize={10} fill="#3f7d4f" />
+            </Bar>
+            <Bar dataKey="Despesa" fill="#7a1f1f" radius={[4, 4, 0, 0]}>
+              <LabelList dataKey="Despesa" position="top" formatter={valorCompacto} fontSize={10} fill="#7a1f1f" />
+            </Bar>
           </BarChart>
         </ResponsiveContainer>
       </div>

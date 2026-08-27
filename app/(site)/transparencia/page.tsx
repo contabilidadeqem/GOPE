@@ -3,13 +3,32 @@
 import { useEffect, useMemo, useState } from 'react';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, CartesianGrid,
-  PieChart, Pie, Cell,
+  PieChart, Pie, Cell, LabelList,
 } from 'recharts';
 import { montarMatrizPorGrupo, NOMES_MESES, formatBRL, type Conta, type Lancamento } from '@/lib/reportData';
 
 const ANO = 2026;
 const CORES_RECEITA = ['#3f7d4f', '#6fa87a', '#a9822f', '#c9a24b'];
 const CORES_DESPESA = ['#7a1f1f', '#b5573a', '#8a5a12'];
+
+const RADIAN = Math.PI / 180;
+function rotuloInternoPizza({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
+  if (percent < 0.03) return null; // fatia mínima demais para caber o texto
+  const raio = innerRadius + (outerRadius - innerRadius) * 0.55;
+  const x = cx + raio * Math.cos(-midAngle * RADIAN);
+  const y = cy + raio * Math.sin(-midAngle * RADIAN);
+  return (
+    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={700}>
+      {`${percent.toFixed(0) === '0' ? percent.toFixed(1) : Math.round(percent)}%`}
+    </text>
+  );
+}
+
+function valorCompacto(v: number): string {
+  if (!v) return '';
+  if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
+  return v.toFixed(0);
+}
 
 export default function TransparenciaPage() {
   const [ateMesIndex, setAteMesIndex] = useState(new Date().getMonth());
@@ -171,7 +190,7 @@ export default function TransparenciaPage() {
           <h3 style={{ marginTop: 0 }}>Receita</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie data={pizzaReceita} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(e) => `${e.value.toFixed(0)}%`}>
+              <Pie data={pizzaReceita} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={rotuloInternoPizza} labelLine={false}>
                 <Cell fill="#3f7d4f" />
                 <Cell fill="#7a1f1f" />
               </Pie>
@@ -183,7 +202,7 @@ export default function TransparenciaPage() {
           <h3 style={{ marginTop: 0 }}>Despesa</h3>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
-              <Pie data={pizzaDespesa} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={(e) => `${e.value.toFixed(0)}%`}>
+              <Pie data={pizzaDespesa} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={rotuloInternoPizza} labelLine={false}>
                 <Cell fill="#3f7d4f" />
                 <Cell fill="#7a1f1f" />
               </Pie>
@@ -203,7 +222,9 @@ export default function TransparenciaPage() {
             <Tooltip formatter={(v: number) => formatBRL(v)} />
             <Legend />
             {gruposReceita.map((g, i) => (
-              <Bar key={g.grupo} dataKey={g.grupo} stackId="r" fill={CORES_RECEITA[i % CORES_RECEITA.length]} />
+              <Bar key={g.grupo} dataKey={g.grupo} stackId="r" fill={CORES_RECEITA[i % CORES_RECEITA.length]}>
+                <LabelList dataKey={g.grupo} position="inside" formatter={valorCompacto} fill="#fff" fontSize={9} fontWeight={700} />
+              </Bar>
             ))}
           </BarChart>
         </ResponsiveContainer>
@@ -219,7 +240,9 @@ export default function TransparenciaPage() {
             <Tooltip formatter={(v: number) => formatBRL(v)} />
             <Legend />
             {gruposDespesa.map((g, i) => (
-              <Bar key={g.grupo} dataKey={g.grupo} stackId="d" fill={CORES_DESPESA[i % CORES_DESPESA.length]} />
+              <Bar key={g.grupo} dataKey={g.grupo} stackId="d" fill={CORES_DESPESA[i % CORES_DESPESA.length]}>
+                <LabelList dataKey={g.grupo} position="inside" formatter={valorCompacto} fill="#fff" fontSize={9} fontWeight={700} />
+              </Bar>
             ))}
           </BarChart>
         </ResponsiveContainer>
