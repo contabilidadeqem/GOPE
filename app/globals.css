@@ -176,7 +176,7 @@ tbody tr:hover { background: #fbf6ec; }
 }
 
 /* ---------- Botões e campos ---------- */
-button {
+button, .btn-primary, .btn-secondary, .btn-ok {
   cursor: pointer;
   border: none;
   border-radius: 8px;
@@ -186,18 +186,17 @@ button {
   line-height: 1.2;
   font-family: inherit;
   transition: filter 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  white-space: nowrap;
 }
-button:hover:not(:disabled) { filter: brightness(0.95); }
+button:hover:not(:disabled), a.btn-primary:hover, a.btn-secondary:hover, a.btn-ok:hover { filter: brightness(0.95); }
 .btn-primary { background: var(--vermelho-institucional); color: white; }
 .btn-secondary { background: var(--bege-medio); color: var(--marrom-texto); }
 .btn-ok { background: var(--verde-ok); color: white; }
 button:disabled { opacity: 0.5; cursor: not-allowed; }
-
-a.btn-secondary, a.btn-primary {
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-}
 
 input, select {
   border: 1px solid var(--cinza-borda);

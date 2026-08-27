@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import CurrencyInput from '@/components/CurrencyInput';
 
 type Conta = { id: string; codigo: string; descricao: string; valor_orcado_2026: number };
 
@@ -13,23 +14,31 @@ export default function ReceitaPage() {
   const [competencia, setCompetencia] = useState(mesesDoAno()[new Date().getMonth()].value);
   const [contas, setContas] = useState<Conta[]>([]);
   const [valores, setValores] = useState<Record<string, number>>({});
+  const [idsLancamento, setIdsLancamento] = useState<Record<string, string>>({});
   const [salvando, setSalvando] = useState<Record<string, boolean>>({});
   const [carregando, setCarregando] = useState(true);
 
-  useEffect(() => {
-    async function carregar() {
-      setCarregando(true);
-      const [contasRes, recRes] = await Promise.all([
-        fetch('/api/plano-contas?tipo=receita').then((r) => r.json()),
-        fetch(`/api/receita?competencia=${competencia}`).then((r) => r.json()),
-      ]);
-      setContas(contasRes.contas ?? []);
-      const mapa: Record<string, number> = {};
-      for (const l of recRes.lancamentos ?? []) mapa[l.conta_id] = Number(l.valor);
-      setValores(mapa);
-      setCarregando(false);
+  async function carregar() {
+    setCarregando(true);
+    const [contasRes, recRes] = await Promise.all([
+      fetch('/api/plano-contas?tipo=receita').then((r) => r.json()),
+      fetch(`/api/receita?competencia=${competencia}`).then((r) => r.json()),
+    ]);
+    setContas(contasRes.contas ?? []);
+    const mapaValores: Record<string, number> = {};
+    const mapaIds: Record<string, string> = {};
+    for (const l of recRes.lancamentos ?? []) {
+      mapaValores[l.conta_id] = Number(l.valor);
+      mapaIds[l.conta_id] = l.id;
     }
+    setValores(mapaValores);
+    setIdsLancamento(mapaIds);
+    setCarregando(false);
+  }
+
+  useEffect(() => {
     carregar();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [competencia]);
 
   async function salvar(contaId: string) {
@@ -39,7 +48,21 @@ export default function ReceitaPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ conta_id: contaId, competencia, valor: valores[contaId] ?? 0 }),
     });
+    await carregar();
     setSalvando((s) => ({ ...s, [contaId]: false }));
+  }
+
+  async function limpar(contaId: string) {
+    const id = idsLancamento[contaId];
+    if (!id) return;
+    if (!confirm('Remover o valor lançado para esta conta neste mês?')) return;
+    await fetch(`/api/receita?id=${id}`, { method: 'DELETE' });
+    setValores((v) => ({ ...v, [contaId]: 0 }));
+    setIdsLancamento((ids) => {
+      const novo = { ...ids };
+      delete novo[contaId];
+      return novo;
+    });
   }
 
   return (
@@ -71,17 +94,17 @@ export default function ReceitaPage() {
                   <td>{c.descricao}</td>
                   <td>{Number(c.valor_orcado_2026).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
                   <td style={{ width: 140 }}>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={valores[c.id] ?? ''}
-                      onChange={(e) => setValores((v) => ({ ...v, [c.id]: parseFloat(e.target.value) || 0 }))}
-                    />
+                    <CurrencyInput value={valores[c.id] ?? 0} onChange={(v) => setValores((val) => ({ ...val, [c.id]: v }))} />
                   </td>
                   <td>
-                    <button className="btn-primary" disabled={salvando[c.id]} onClick={() => salvar(c.id)}>
-                      {salvando[c.id] ? 'Salvando…' : 'Salvar'}
-                    </button>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn-primary" disabled={salvando[c.id]} onClick={() => salvar(c.id)}>
+                        {salvando[c.id] ? 'Salvando…' : 'Salvar'}
+                      </button>
+                      {idsLancamento[c.id] && (
+                        <button className="btn-secondary" onClick={() => limpar(c.id)}>Excluir</button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))}

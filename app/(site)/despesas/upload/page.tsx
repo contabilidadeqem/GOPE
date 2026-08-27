@@ -1,18 +1,19 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import CurrencyInput from '@/components/CurrencyInput';
 
 type Conta = { id: string; codigo: string; descricao: string };
 
 type ItemFila = {
-  id: string; // id do lançamento no banco
+  id: string;
   arquivo_nome: string;
   conta_id: string | null;
   valor: number;
   data_pagamento: string | null;
   fornecedor: string | null;
   status: 'pendente' | 'confirmado';
-  contaEncontradaPelaPasta: boolean;
+  competencia: string;
 };
 
 function mesesDoAno() {
@@ -20,11 +21,17 @@ function mesesDoAno() {
   return nomes.map((n, i) => ({ label: n, value: `2026-${String(i + 1).padStart(2, '0')}-01` }));
 }
 
+function rotuloCompetencia(competencia: string) {
+  const mes = mesesDoAno().find((m) => m.value === competencia);
+  return mes ? `${mes.label}/2026` : competencia;
+}
+
 export default function UploadDespesaPage() {
   const [competencia, setCompetencia] = useState(mesesDoAno()[new Date().getMonth()].value);
   const [contas, setContas] = useState<Conta[]>([]);
   const [fila, setFila] = useState<ItemFila[]>([]);
   const [processando, setProcessando] = useState(false);
+  const [carregando, setCarregando] = useState(true);
   const [progresso, setProgresso] = useState({ atual: 0, total: 0 });
 
   async function carregarContas() {
@@ -34,9 +41,30 @@ export default function UploadDespesaPage() {
     return res.contas ?? [];
   }
 
+  async function carregarLancamentosDoMes() {
+    setCarregando(true);
+    await carregarContas();
+    const res = await fetch(`/api/lancamentos?competencia=${competencia}`).then((r) => r.json());
+    const itens: ItemFila[] = (res.lancamentos ?? []).map((l: any) => ({
+      id: l.id,
+      arquivo_nome: l.arquivo_nome ?? '(lançamento manual, sem recibo)',
+      conta_id: l.conta_id,
+      valor: Number(l.valor),
+      data_pagamento: l.data_pagamento,
+      fornecedor: l.fornecedor,
+      status: l.status,
+      competencia: l.competencia,
+    }));
+    setFila(itens);
+    setCarregando(false);
+  }
+
+  useEffect(() => {
+    carregarLancamentosDoMes();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [competencia]);
+
   function extrairPastaDoCaminho(relativePath: string): string {
-    // ex: "DESPESA/DESPESAS ADMINISTRATIVAS/arquivo.pdf" -> "DESPESAS ADMINISTRATIVAS"
-    // ex: "DESPESA/arquivo.pdf" -> "" (sem subpasta, precisa classificação manual)
     const partes = relativePath.split('/');
     if (partes.length >= 3) return partes[partes.length - 2];
     return '';
@@ -61,7 +89,6 @@ export default function UploadDespesaPage() {
         const res = await fetch('/api/extract-despesa', { method: 'POST', body: fd }).then((r) => r.json());
         if (res.lancamento) {
           setFila((prev) => [
-            ...prev,
             {
               id: res.lancamento.id,
               arquivo_nome: res.lancamento.arquivo_nome,
@@ -70,8 +97,9 @@ export default function UploadDespesaPage() {
               data_pagamento: res.lancamento.data_pagamento,
               fornecedor: res.lancamento.fornecedor,
               status: 'pendente',
-              contaEncontradaPelaPasta: res.contaEncontradaPelaPasta,
+              competencia: res.lancamento.competencia,
             },
+            ...prev,
           ]);
         }
       } catch (e) {
@@ -95,6 +123,12 @@ export default function UploadDespesaPage() {
     await atualizarItem(id, { status: 'confirmado' });
   }
 
+  async function excluir(id: string) {
+    if (!confirm('Excluir este lançamento? Essa ação não pode ser desfeita.')) return;
+    setFila((prev) => prev.filter((it) => it.id !== id));
+    await fetch(`/api/lancamentos?id=${id}`, { method: 'DELETE' });
+  }
+
   async function confirmarTodosProntos() {
     const prontos = fila.filter((it) => it.status === 'pendente' && it.conta_id && it.valor > 0);
     for (const it of prontos) await confirmar(it.id);
@@ -103,23 +137,21 @@ export default function UploadDespesaPage() {
   const pendentesSemConta = fila.filter((it) => it.status === 'pendente' && !it.conta_id).length;
 
   const [mostrarManual, setMostrarManual] = useState(false);
-  const [manual, setManual] = useState({ conta_id: '', valor: '', data_pagamento: '', fornecedor: '', descricao_documento: '' });
+  const [manual, setManual] = useState({ conta_id: '', valor: 0, data_pagamento: '', fornecedor: '' });
   const [salvandoManual, setSalvandoManual] = useState(false);
 
   async function salvarLancamentoManual() {
     if (!manual.conta_id || !manual.valor) return;
     setSalvandoManual(true);
-    await carregarContas();
     const res = await fetch('/api/lancamentos', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         conta_id: manual.conta_id,
         competencia,
-        valor: parseFloat(manual.valor),
+        valor: manual.valor,
         data_pagamento: manual.data_pagamento || null,
         fornecedor: manual.fornecedor || null,
-        descricao_documento: manual.descricao_documento || null,
       }),
     }).then((r) => r.json());
 
@@ -133,11 +165,11 @@ export default function UploadDespesaPage() {
           data_pagamento: res.lancamento.data_pagamento,
           fornecedor: res.lancamento.fornecedor,
           status: 'confirmado',
-          contaEncontradaPelaPasta: true,
+          competencia: res.lancamento.competencia,
         },
         ...prev,
       ]);
-      setManual({ conta_id: '', valor: '', data_pagamento: '', fornecedor: '', descricao_documento: '' });
+      setManual({ conta_id: '', valor: 0, data_pagamento: '', fornecedor: '' });
       setMostrarManual(false);
     }
     setSalvandoManual(false);
@@ -151,7 +183,7 @@ export default function UploadDespesaPage() {
       <div className="card toolbar">
         <div className="toolbar-group">
           <div className="field">
-            <label>Competência</label>
+            <label>Competência selecionada</label>
             <select value={competencia} onChange={(e) => setCompetencia(e.target.value)}>
               {mesesDoAno().map((m) => (
                 <option key={m.value} value={m.value}>{m.label}/2026</option>
@@ -174,6 +206,13 @@ export default function UploadDespesaPage() {
         {processando && (
           <div style={{ fontSize: 13, fontWeight: 700 }}>Processando {progresso.atual} de {progresso.total}…</div>
         )}
+      </div>
+
+      <div style={{
+        background: '#faf3e6', border: '1px solid var(--dourado)', borderRadius: 8,
+        padding: '10px 16px', marginBottom: 16, fontSize: 13, fontWeight: 700,
+      }}>
+        Tudo que você lançar ou confirmar agora entra em <u>{rotuloCompetencia(competencia)}</u>. Confira antes de salvar.
       </div>
 
       <div className="card">
@@ -202,7 +241,7 @@ export default function UploadDespesaPage() {
             </div>
             <div className="field">
               <label>Valor</label>
-              <input type="number" step="0.01" value={manual.valor} onChange={(e) => setManual((m) => ({ ...m, valor: e.target.value }))} />
+              <CurrencyInput value={manual.valor} onChange={(v) => setManual((m) => ({ ...m, valor: v }))} />
             </div>
             <div className="field">
               <label>Data pagamento</label>
@@ -213,97 +252,99 @@ export default function UploadDespesaPage() {
               <input value={manual.fornecedor} onChange={(e) => setManual((m) => ({ ...m, fornecedor: e.target.value }))} />
             </div>
             <button className="btn-primary" disabled={salvandoManual || !manual.conta_id || !manual.valor} onClick={salvarLancamentoManual}>
-              {salvandoManual ? 'Salvando…' : 'Salvar'}
+              {salvandoManual ? 'Salvando…' : `Salvar em ${rotuloCompetencia(competencia)}`}
             </button>
           </div>
         )}
       </div>
 
-      {fila.length > 0 && (
-        <div className="card">
-          <div className="toolbar" style={{ marginBottom: 12 }}>
-            <h3 style={{ margin: 0 }}>Fila de conferência ({fila.length})</h3>
-            <button className="btn-ok" onClick={confirmarTodosProntos}>Confirmar todos os prontos</button>
-          </div>
-          {pendentesSemConta > 0 && (
-            <div style={{ marginBottom: 12, fontSize: 13, color: '#7a1f1f', fontWeight: 700 }}>
-              {pendentesSemConta} documento(s) sem conta identificada pela pasta — selecione manualmente antes de confirmar.
-            </div>
-          )}
-          <table>
-            <thead>
-              <tr>
-                <th>Documento</th>
-                <th>Conta</th>
-                <th>Valor</th>
-                <th>Data pagamento</th>
-                <th>Fornecedor</th>
-                <th>Status</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {fila.map((item) => (
-                <tr key={item.id}>
-                  <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.arquivo_nome}</td>
-                  <td>
-                    <select
-                      value={item.conta_id ?? ''}
-                      disabled={item.status === 'confirmado'}
-                      onChange={(e) => atualizarItem(item.id, { conta_id: e.target.value || null })}
-                    >
-                      <option value="">— selecionar —</option>
-                      {contas.map((c) => (
-                        <option key={c.id} value={c.id}>{c.codigo} · {c.descricao}</option>
-                      ))}
-                    </select>
-                  </td>
-                  <td style={{ width: 110 }}>
-                    <input
-                      type="number"
-                      step="0.01"
-                      value={item.valor}
-                      disabled={item.status === 'confirmado'}
-                      onChange={(e) => atualizarItem(item.id, { valor: parseFloat(e.target.value) || 0 })}
-                    />
-                  </td>
-                  <td style={{ width: 130 }}>
-                    <input
-                      type="date"
-                      value={item.data_pagamento ?? ''}
-                      disabled={item.status === 'confirmado'}
-                      onChange={(e) => atualizarItem(item.id, { data_pagamento: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <input
-                      value={item.fornecedor ?? ''}
-                      disabled={item.status === 'confirmado'}
-                      onChange={(e) => atualizarItem(item.id, { fornecedor: e.target.value })}
-                    />
-                  </td>
-                  <td>
-                    <span className={`badge ${item.status === 'confirmado' ? 'badge-confirmado' : item.conta_id ? 'badge-pendente' : 'badge-sem-conta'}`}>
-                      {item.status === 'confirmado' ? 'Confirmado' : item.conta_id ? 'Pendente' : 'Sem conta'}
-                    </span>
-                  </td>
-                  <td>
-                    {item.status === 'pendente' && (
-                      <button
-                        className="btn-primary"
-                        disabled={!item.conta_id || item.valor <= 0}
-                        onClick={() => confirmar(item.id)}
-                      >
-                        Confirmar
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+      <div className="card">
+        <div className="toolbar" style={{ marginBottom: 12 }}>
+          <h3 style={{ margin: 0 }}>Lançamentos de {rotuloCompetencia(competencia)} ({fila.length})</h3>
+          <button className="btn-ok" onClick={confirmarTodosProntos} disabled={!fila.some((it) => it.status === 'pendente' && it.conta_id && it.valor > 0)}>
+            Confirmar todos os prontos
+          </button>
         </div>
-      )}
+        {pendentesSemConta > 0 && (
+          <div style={{ marginBottom: 12, fontSize: 13, color: '#7a1f1f', fontWeight: 700 }}>
+            {pendentesSemConta} documento(s) sem conta identificada pela pasta — selecione manualmente antes de confirmar.
+          </div>
+        )}
+        {carregando ? (
+          <div>Carregando…</div>
+        ) : fila.length === 0 ? (
+          <div style={{ opacity: 0.6, fontSize: 13 }}>Nenhum lançamento em {rotuloCompetencia(competencia)} ainda.</div>
+        ) : (
+          <div style={{ overflowX: 'auto' }}>
+            <table style={{ minWidth: 900 }}>
+              <thead>
+                <tr>
+                  <th>Documento</th>
+                  <th>Conta</th>
+                  <th>Valor</th>
+                  <th>Data pagamento</th>
+                  <th>Fornecedor</th>
+                  <th>Status</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody>
+                {fila.map((item) => (
+                  <tr key={item.id}>
+                    <td style={{ maxWidth: 180, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{item.arquivo_nome}</td>
+                    <td>
+                      <select
+                        value={item.conta_id ?? ''}
+                        onChange={(e) => atualizarItem(item.id, { conta_id: e.target.value || null })}
+                      >
+                        <option value="">— selecionar —</option>
+                        {contas.map((c) => (
+                          <option key={c.id} value={c.id}>{c.codigo} · {c.descricao}</option>
+                        ))}
+                      </select>
+                    </td>
+                    <td style={{ width: 130 }}>
+                      <CurrencyInput value={item.valor} onChange={(v) => atualizarItem(item.id, { valor: v })} />
+                    </td>
+                    <td style={{ width: 140 }}>
+                      <input
+                        type="date"
+                        value={item.data_pagamento ?? ''}
+                        onChange={(e) => atualizarItem(item.id, { data_pagamento: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <input
+                        value={item.fornecedor ?? ''}
+                        onChange={(e) => atualizarItem(item.id, { fornecedor: e.target.value })}
+                      />
+                    </td>
+                    <td>
+                      <span className={`badge ${item.status === 'confirmado' ? 'badge-confirmado' : item.conta_id ? 'badge-pendente' : 'badge-sem-conta'}`}>
+                        {item.status === 'confirmado' ? 'Confirmado' : item.conta_id ? 'Pendente' : 'Sem conta'}
+                      </span>
+                    </td>
+                    <td>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        {item.status === 'pendente' && (
+                          <button
+                            className="btn-primary"
+                            disabled={!item.conta_id || item.valor <= 0}
+                            onClick={() => confirmar(item.id)}
+                          >
+                            Confirmar
+                          </button>
+                        )}
+                        <button className="btn-secondary" onClick={() => excluir(item.id)}>Excluir</button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
     </div>
   );
 }

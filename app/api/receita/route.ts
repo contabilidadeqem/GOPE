@@ -45,3 +45,15 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ lancamento: data });
 }
+
+// DELETE /api/receita?id=...
+export async function DELETE(req: NextRequest) {
+  const supabase = supabaseServer();
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+
+  const { error } = await supabase.from('lancamentos_receita').delete().eq('id', id);
+  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  return NextResponse.json({ ok: true });
+}
