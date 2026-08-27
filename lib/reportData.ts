@@ -4,6 +4,8 @@ export type Conta = {
   descricao: string;
   tipo: 'receita' | 'despesa';
   valor_orcado_2026: number;
+  grupo?: string | null;
+  grupo_codigo?: string | null;
 };
 
 export type Lancamento = {
@@ -45,4 +47,51 @@ export function montarMatrizAnual(
 
 export function formatBRL(v: number) {
   return v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+export type LinhaGrupo = {
+  grupo: string;
+  grupoCodigo: string;
+  porMes: number[];
+  realizadoAteMes: number;
+  totalAno: number;
+  orcado: number;
+};
+
+/**
+ * Igual a montarMatrizAnual, mas soma as contas dentro do mesmo "grupo" consolidado
+ * (ex: RECEITAS ORDINÁRIAS = soma de Cota de Obreiros + Taxa de Iniciação + ...).
+ * É a visão usada no Relatório de Transparência.
+ */
+export function montarMatrizPorGrupo(
+  contas: Conta[],
+  lancamentos: Lancamento[],
+  ateMesIndex: number
+): LinhaGrupo[] {
+  const grupos = new Map<string, { grupoCodigo: string; contaIds: string[]; orcado: number }>();
+
+  for (const conta of contas) {
+    const nomeGrupo = conta.grupo || conta.descricao;
+    const codigoGrupo = conta.grupo_codigo || conta.codigo;
+    if (!grupos.has(nomeGrupo)) {
+      grupos.set(nomeGrupo, { grupoCodigo: codigoGrupo, contaIds: [], orcado: 0 });
+    }
+    const g = grupos.get(nomeGrupo)!;
+    g.contaIds.push(conta.id);
+    g.orcado += Number(conta.valor_orcado_2026);
+  }
+
+  const resultado: LinhaGrupo[] = [];
+  for (const [nomeGrupo, info] of grupos) {
+    const porMes = new Array(12).fill(0);
+    for (const l of lancamentos) {
+      if (!info.contaIds.includes(l.conta_id)) continue;
+      const mesIndex = Number(l.competencia.slice(5, 7)) - 1;
+      if (mesIndex >= 0 && mesIndex < 12) porMes[mesIndex] += Number(l.valor);
+    }
+    const totalAno = porMes.reduce((s, v) => s + v, 0);
+    const realizadoAteMes = porMes.slice(0, ateMesIndex + 1).reduce((s, v) => s + v, 0);
+    resultado.push({ grupo: nomeGrupo, grupoCodigo: info.grupoCodigo, porMes, realizadoAteMes, totalAno, orcado: info.orcado });
+  }
+  return resultado.sort((a, b) => a.grupoCodigo.localeCompare(b.grupoCodigo));
 }
