@@ -14,6 +14,8 @@ export const CORES = {
   verde: '#3f7d4f',
   branco: '#fffdf9',
   borda: '#d8c39a',
+  mesA: '#fbf6ec',
+  mesB: '#f1e2c6',
 };
 
 export const CAMINHO_BRASAO = path.join(process.cwd(), 'public', 'brasao-gope.png');

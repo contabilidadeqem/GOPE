@@ -13,6 +13,14 @@ type Conta = {
   grupo?: string | null;
 };
 
+type FormConta = {
+  codigo: string;
+  descricao: string;
+  valor: number;
+  pasta_nome: string;
+  grupo: string;
+};
+
 const NOVA_CONTA_VAZIA = {
   tipo: 'despesa' as 'receita' | 'despesa',
   codigo: '',
@@ -24,8 +32,6 @@ const NOVA_CONTA_VAZIA = {
 
 export default function PlanoContasEditor() {
   const [contas, setContas] = useState<Conta[]>([]);
-  const [valores, setValores] = useState<Record<string, number>>({});
-  const [salvando, setSalvando] = useState<Record<string, boolean>>({});
   const [carregando, setCarregando] = useState(true);
 
   const [mostrarNova, setMostrarNova] = useState(false);
@@ -33,34 +39,24 @@ export default function PlanoContasEditor() {
   const [salvandoNova, setSalvandoNova] = useState(false);
   const [erroNova, setErroNova] = useState('');
 
+  const [editandoId, setEditandoId] = useState<string | null>(null);
+  const [formEdicao, setFormEdicao] = useState<FormConta | null>(null);
+  const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+
   async function carregar() {
     setCarregando(true);
     const res = await fetch('/api/plano-contas').then((r) => r.json());
-    const lista: Conta[] = res.contas ?? [];
-    setContas(lista);
-    const mapa: Record<string, number> = {};
-    for (const c of lista) mapa[c.id] = Number(c.valor_orcado_2026);
-    setValores(mapa);
+    setContas(res.contas ?? []);
     setCarregando(false);
   }
 
   useEffect(() => { carregar(); }, []);
 
-  async function salvar(id: string) {
-    setSalvando((s) => ({ ...s, [id]: true }));
-    await fetch('/api/plano-contas', {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, valor_orcado_2026: valores[id] ?? 0 }),
-    });
-    setSalvando((s) => ({ ...s, [id]: false }));
+  function gruposPorTipo(tipo: 'receita' | 'despesa') {
+    return Array.from(new Set(contas.filter((c) => c.tipo === tipo && c.grupo).map((c) => c.grupo as string)));
   }
 
-  const gruposExistentes = useMemo(
-    () => Array.from(new Set(contas.map((c) => c.grupo).filter(Boolean))) as string[],
-    [contas]
-  );
-
+  // --- criação de conta nova ---
   async function criarConta() {
     setErroNova('');
     if (!novaConta.codigo.trim() || !novaConta.descricao.trim()) {
@@ -91,32 +87,107 @@ export default function PlanoContasEditor() {
     setSalvandoNova(false);
   }
 
+  // --- edição de conta existente ---
+  function iniciarEdicao(c: Conta) {
+    setEditandoId(c.id);
+    setFormEdicao({
+      codigo: c.codigo,
+      descricao: c.descricao,
+      valor: Number(c.valor_orcado_2026),
+      pasta_nome: c.pasta_nome ?? '',
+      grupo: c.grupo ?? '',
+    });
+  }
+
+  function cancelarEdicao() {
+    setEditandoId(null);
+    setFormEdicao(null);
+  }
+
+  async function salvarEdicao(c: Conta) {
+    if (!formEdicao) return;
+    setSalvandoEdicao(true);
+    await fetch('/api/plano-contas', {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: c.id,
+        codigo: formEdicao.codigo.trim(),
+        descricao: formEdicao.descricao.trim(),
+        valor_orcado_2026: formEdicao.valor,
+        pasta_nome: c.tipo === 'despesa' ? (formEdicao.pasta_nome.trim() || null) : null,
+        grupo: formEdicao.grupo.trim() || null,
+      }),
+    });
+    await carregar();
+    setSalvandoEdicao(false);
+    cancelarEdicao();
+  }
+
   const receitas = contas.filter((c) => c.tipo === 'receita');
   const despesas = contas.filter((c) => c.tipo === 'despesa');
 
-  function Tabela({ titulo, lista }: { titulo: string; lista: Conta[] }) {
+  function Tabela({ titulo, lista, tipo }: { titulo: string; lista: Conta[]; tipo: 'receita' | 'despesa' }) {
+    const grupos = gruposPorTipo(tipo);
+    const datalistId = `grupos-${tipo}`;
+
     return (
       <div className="card">
         <h3 style={{ marginTop: 0 }}>{titulo}</h3>
+        <datalist id={datalistId}>
+          {grupos.map((g) => <option key={g} value={g} />)}
+        </datalist>
         <table>
           <thead>
-            <tr><th>Código</th><th>Conta</th><th>Orçado no ano</th><th></th></tr>
+            <tr><th>Código</th><th>Conta</th><th>Orçado no ano</th><th>Grupo consolidado</th><th></th></tr>
           </thead>
           <tbody>
-            {lista.map((c) => (
-              <tr key={c.id}>
-                <td>{c.codigo}</td>
-                <td>{c.descricao}</td>
-                <td style={{ width: 160 }}>
-                  <CurrencyInput value={valores[c.id] ?? 0} onChange={(v) => setValores((val) => ({ ...val, [c.id]: v }))} />
-                </td>
-                <td>
-                  <button className="btn-primary" disabled={salvando[c.id]} onClick={() => salvar(c.id)}>
-                    {salvando[c.id] ? 'Salvando…' : 'Salvar'}
-                  </button>
-                </td>
-              </tr>
-            ))}
+            {lista.map((c) => {
+              const emEdicao = editandoId === c.id;
+              if (!emEdicao) {
+                return (
+                  <tr key={c.id}>
+                    <td>{c.codigo}</td>
+                    <td>{c.descricao}</td>
+                    <td>{Number(c.valor_orcado_2026).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td style={{ opacity: 0.7 }}>{c.grupo || '—'}</td>
+                    <td>
+                      <button className="btn-secondary" onClick={() => iniciarEdicao(c)}>Editar</button>
+                    </td>
+                  </tr>
+                );
+              }
+              return (
+                <tr key={c.id} style={{ background: '#faf3e6' }}>
+                  <td style={{ width: 110 }}>
+                    <input value={formEdicao?.codigo ?? ''} onChange={(e) => setFormEdicao((f) => f && { ...f, codigo: e.target.value })} />
+                  </td>
+                  <td>
+                    <input value={formEdicao?.descricao ?? ''} onChange={(e) => setFormEdicao((f) => f && { ...f, descricao: e.target.value })} style={{ width: '100%' }} />
+                  </td>
+                  <td style={{ width: 150 }}>
+                    <CurrencyInput value={formEdicao?.valor ?? 0} onChange={(v) => setFormEdicao((f) => f && { ...f, valor: v })} />
+                  </td>
+                  <td style={{ width: 200 }}>
+                    <input
+                      value={formEdicao?.grupo ?? ''}
+                      onChange={(e) => setFormEdicao((f) => f && { ...f, grupo: e.target.value })}
+                      list={datalistId}
+                      placeholder="ex: DESPESAS DE CUSTEIO"
+                      style={{ width: '100%' }}
+                    />
+                  </td>
+                  <td>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button className="btn-primary" disabled={salvandoEdicao} onClick={() => salvarEdicao(c)}>
+                        {salvandoEdicao ? 'Salvando…' : 'Salvar'}
+                      </button>
+                      <button className="btn-secondary" onClick={cancelarEdicao}>Cancelar</button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       </div>
@@ -141,7 +212,7 @@ export default function PlanoContasEditor() {
             <div className="toolbar-group">
               <div className="field">
                 <label>Tipo</label>
-                <select value={novaConta.tipo} onChange={(e) => setNovaConta((n) => ({ ...n, tipo: e.target.value as 'receita' | 'despesa' }))}>
+                <select value={novaConta.tipo} onChange={(e) => setNovaConta((n) => ({ ...n, tipo: e.target.value as 'receita' | 'despesa', grupo: '' }))}>
                   <option value="despesa">Despesa</option>
                   <option value="receita">Receita</option>
                 </select>
@@ -177,13 +248,16 @@ export default function PlanoContasEditor() {
                 <input
                   value={novaConta.grupo}
                   onChange={(e) => setNovaConta((n) => ({ ...n, grupo: e.target.value }))}
-                  placeholder="ex: DESPESAS DE CUSTEIO"
-                  list="grupos-existentes"
+                  placeholder={novaConta.tipo === 'despesa' ? 'ex: DESPESAS DE CUSTEIO' : 'ex: RECEITAS ORDINÁRIAS'}
+                  list={`grupos-novo-${novaConta.tipo}`}
                   style={{ width: '100%' }}
                 />
-                <datalist id="grupos-existentes">
-                  {gruposExistentes.map((g) => <option key={g} value={g} />)}
+                <datalist id={`grupos-novo-${novaConta.tipo}`}>
+                  {gruposPorTipo(novaConta.tipo).map((g) => <option key={g} value={g} />)}
                 </datalist>
+                <div style={{ fontSize: 11, opacity: 0.6, marginTop: 4 }}>
+                  Só mostra sugestões de grupos de {novaConta.tipo === 'despesa' ? 'despesa' : 'receita'} — não misture os dois.
+                </div>
               </div>
             </div>
 
@@ -200,8 +274,8 @@ export default function PlanoContasEditor() {
 
       {carregando ? <div className="card">Carregando…</div> : (
         <>
-          <Tabela titulo="Receitas" lista={receitas} />
-          <Tabela titulo="Despesas" lista={despesas} />
+          <Tabela titulo="Receitas" lista={receitas} tipo="receita" />
+          <Tabela titulo="Despesas" lista={despesas} tipo="despesa" />
         </>
       )}
     </div>

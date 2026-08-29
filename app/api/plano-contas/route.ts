@@ -14,20 +14,26 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ contas: data });
 }
 
-// PATCH /api/plano-contas  { id, valor_orcado_2026 }
+// PATCH /api/plano-contas  { id, valor_orcado_2026?, codigo?, descricao?, pasta_nome?, grupo?, grupo_codigo? }
 // Só o contador pode chamar isso (garantido pelo middleware + pela tela que só ele acessa)
 export async function PATCH(req: NextRequest) {
   const supabase = supabaseServer();
   const body = await req.json();
-  const { id, valor_orcado_2026 } = body;
+  const { id, ...campos } = body;
 
-  if (!id || valor_orcado_2026 === undefined) {
-    return NextResponse.json({ error: 'id e valor_orcado_2026 são obrigatórios' }, { status: 400 });
+  if (!id) {
+    return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+  }
+
+  const camposPermitidos = ['valor_orcado_2026', 'codigo', 'descricao', 'pasta_nome', 'grupo', 'grupo_codigo'];
+  const atualizacao: Record<string, any> = {};
+  for (const campo of camposPermitidos) {
+    if (campo in campos) atualizacao[campo] = campos[campo];
   }
 
   const { data, error } = await supabase
     .from('plano_contas')
-    .update({ valor_orcado_2026 })
+    .update(atualizacao)
     .eq('id', id)
     .select('*')
     .single();

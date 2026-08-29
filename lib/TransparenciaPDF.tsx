@@ -1,5 +1,5 @@
 import React from 'react';
-import { Document, Page, Text, View, StyleSheet, Svg, Path, Rect, Line } from '@react-pdf/renderer';
+import { Document, Page, Text, View, StyleSheet, Svg, Path, Rect, Line, Text as SvgText } from '@react-pdf/renderer';
 import { NOMES_MESES, formatBRL, type LinhaGrupo } from './reportData';
 import { CapaPaisagem, CabecalhoPagina, paginaBaseStyles, CORES, BlocoConfiabilidadeAssinaturas } from './pdfShared';
 
@@ -64,12 +64,18 @@ function PizzaOrcadoRealizado({ pctRealizado, titulo }: { pctRealizado: number; 
   );
 }
 
+function valorCompactoPDF(v: number): string {
+  if (!v) return '';
+  if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
+  return v.toFixed(0);
+}
+
 function GraficoBarrasEmpilhadas({ linhas, ateMesIndex, cores, largura, altura }: { linhas: LinhaGrupo[]; ateMesIndex: number; cores: string[]; largura: number; altura: number }) {
   const meses = NOMES_MESES.slice(0, ateMesIndex + 1);
   const totaisPorMes = meses.map((_, i) => linhas.reduce((s, l) => s + l.porMes[i], 0));
   const max = Math.max(1, ...totaisPorMes);
   const larguraGrupo = largura / meses.length;
-  const barraW = larguraGrupo * 0.5;
+  const barraW = larguraGrupo * 0.42;
   const areaAltura = altura - 16;
 
   return (
@@ -81,9 +87,26 @@ function GraficoBarrasEmpilhadas({ linhas, ateMesIndex, cores, largura, altura }
         return (
           <React.Fragment key={i}>
             {linhas.map((l, li) => {
-              const h = (l.porMes[i] / max) * areaAltura;
+              const valor = l.porMes[i];
+              const h = (valor / max) * areaAltura;
+              const yTopo = yAcumulado - h;
+              const yCentro = yTopo + h / 2;
               yAcumulado -= h;
-              return <Rect key={li} x={x} y={yAcumulado} width={barraW} height={h} fill={cores[li % cores.length]} />;
+              if (valor <= 0) return null;
+              const mostrarRotulo = h > 7; // segmento alto o suficiente pro texto não colidir
+              return (
+                <React.Fragment key={li}>
+                  <Rect x={x} y={yTopo} width={barraW} height={h} fill={cores[li % cores.length]} />
+                  {mostrarRotulo && (
+                    <>
+                      <Line x1={x + barraW} y1={yCentro} x2={x + barraW + 5} y2={yCentro} stroke={CORES.texto} strokeWidth={0.6} />
+                      <SvgText x={x + barraW + 7} y={yCentro} style={{ fontSize: 5 }} fill={CORES.texto}>
+                        {valorCompactoPDF(valor)}
+                      </SvgText>
+                    </>
+                  )}
+                </React.Fragment>
+              );
             })}
           </React.Fragment>
         );
@@ -122,17 +145,23 @@ function TabelaConsolidada({ titulo, linhas, ano }: { titulo: string; linhas: Li
   );
 }
 
-function TabelaAnualGrupo({ linhas }: { linhas: LinhaGrupo[] }) {
+function TabelaAnualGrupo({ linhas, ateMesIndex }: { linhas: LinhaGrupo[]; ateMesIndex: number }) {
   return (
     <View style={styles.tableAnual}>
       <View style={styles.trHead}>
         <Text style={styles.thContaAnual}>Conta</Text>
-        {NOMES_MESES.map((m) => <Text key={m} style={styles.thMes}>{m}</Text>)}
+        {NOMES_MESES.map((m, i) => (
+          <Text key={m} style={[styles.thMes, { backgroundColor: i % 2 === 0 ? CORES.mesA : CORES.mesB }]}>{m}</Text>
+        ))}
       </View>
       {linhas.map((l) => (
         <View style={styles.tr} key={l.grupo}>
           <Text style={styles.tdContaAnual}>{l.grupo}</Text>
-          {l.porMes.map((v, i) => <Text key={i} style={styles.tdMes}>{v > 0 ? formatBRL(v) : '—'}</Text>)}
+          {l.porMes.map((v, i) => (
+            <Text key={i} style={[styles.tdMes, { backgroundColor: i % 2 === 0 ? CORES.mesA : CORES.mesB }]}>
+              {i > ateMesIndex ? '—' : (v > 0 ? formatBRL(v) : '—')}
+            </Text>
+          ))}
         </View>
       ))}
     </View>
@@ -217,9 +246,9 @@ export function TransparenciaPDF({
       <Page size="A4" orientation="landscape" style={paginaBaseStyles.page}>
         <CabecalhoPagina titulo="Demonstração Financeira Detalhada — Realizadas" sub={`Grande Oriente de Pernambuco · ano ${ano}`} />
         <Text style={{ fontSize: 10, fontWeight: 700, marginBottom: 6 }}>Receitas</Text>
-        <View style={{ marginBottom: 16 }}><TabelaAnualGrupo linhas={gruposReceita} /></View>
+        <View style={{ marginBottom: 16 }}><TabelaAnualGrupo linhas={gruposReceita} ateMesIndex={ateMesIndex} /></View>
         <Text style={{ fontSize: 10, fontWeight: 700, marginBottom: 6 }}>Despesas</Text>
-        <TabelaAnualGrupo linhas={gruposDespesa} />
+        <TabelaAnualGrupo linhas={gruposDespesa} ateMesIndex={ateMesIndex} />
 
         <BlocoConfiabilidadeAssinaturas />
 

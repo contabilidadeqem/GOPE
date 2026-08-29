@@ -35,7 +35,9 @@ function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: st
           <Text style={styles.thCodigo}>Código</Text>
           <Text style={styles.thConta}>Conta</Text>
           <Text style={styles.thOrcado}>Orçado {'\n'}no ano</Text>
-          {NOMES_MESES.map((m) => <Text key={m} style={styles.thMes}>{m}</Text>)}
+          {NOMES_MESES.map((m, i) => (
+            <Text key={m} style={[styles.thMes, { backgroundColor: i % 2 === 0 ? CORES.mesA : CORES.mesB }]}>{m}</Text>
+          ))}
           <Text style={styles.thTotal}>Até {NOMES_MESES[ateMesIndex]}</Text>
           <Text style={styles.thPct}>%</Text>
         </View>
@@ -46,7 +48,11 @@ function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: st
               <Text style={styles.tdCodigo}>{conta.codigo}</Text>
               <Text style={styles.tdConta}>{conta.descricao}</Text>
               <Text style={styles.tdOrcado}>{formatBRL(Number(conta.valor_orcado_2026))}</Text>
-              {porMes.map((v, i) => <Text key={i} style={styles.tdMes}>{v > 0 ? formatBRL(v) : '—'}</Text>)}
+              {porMes.map((v, i) => (
+                <Text key={i} style={[styles.tdMes, { backgroundColor: i % 2 === 0 ? CORES.mesA : CORES.mesB }]}>
+                  {i > ateMesIndex ? '—' : (v > 0 ? formatBRL(v) : '—')}
+                </Text>
+              ))}
               <Text style={styles.tdTotal}>{formatBRL(realizadoAteMes)}</Text>
               <Text style={styles.tdPct}>{pct.toFixed(0)}%</Text>
             </View>
@@ -57,7 +63,7 @@ function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: st
           <Text style={[styles.tdConta, { fontWeight: 700 }]}>TOTAL</Text>
           <Text style={styles.tdOrcado}>{formatBRL(totalOrcado)}</Text>
           {Array.from({ length: 12 }).map((_, i) => (
-            <Text key={i} style={styles.tdMes}>{formatBRL(linhas.reduce((s, l) => s + l.porMes[i], 0))}</Text>
+            <Text key={i} style={styles.tdMes}>{i > ateMesIndex ? '—' : formatBRL(linhas.reduce((s, l) => s + l.porMes[i], 0))}</Text>
           ))}
           <Text style={[styles.tdTotal, { fontWeight: 700 }]}>{formatBRL(linhas.reduce((s, l) => s + l.realizadoAteMes, 0))}</Text>
           <Text style={styles.tdPct}>

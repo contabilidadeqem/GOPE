@@ -12,14 +12,15 @@ const CORES_RECEITA = ['#3f7d4f', '#6fa87a', '#a9822f', '#c9a24b'];
 const CORES_DESPESA = ['#7a1f1f', '#b5573a', '#8a5a12'];
 
 const RADIAN = Math.PI / 180;
-function rotuloInternoPizza({ cx, cy, midAngle, innerRadius, outerRadius, percent }: any) {
-  if (percent < 0.03) return null; // fatia mínima demais para caber o texto
+function rotuloInternoPizza(props: any) {
+  const { cx, cy, midAngle, innerRadius, outerRadius, percent, payload } = props;
+  if (percent < 0.02) return null; // fatia mínima demais para caber o texto
   const raio = innerRadius + (outerRadius - innerRadius) * 0.55;
   const x = cx + raio * Math.cos(-midAngle * RADIAN);
   const y = cy + raio * Math.sin(-midAngle * RADIAN);
   return (
-    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={13} fontWeight={700}>
-      {`${percent.toFixed(0) === '0' ? percent.toFixed(1) : Math.round(percent)}%`}
+    <text x={x} y={y} fill="#fff" textAnchor="middle" dominantBaseline="central" fontSize={12} fontWeight={700}>
+      {formatBRL(payload.valor)}
     </text>
   );
 }
@@ -28,6 +29,25 @@ function valorCompacto(v: number): string {
   if (!v) return '';
   if (v >= 1000) return `${(v / 1000).toFixed(0)}k`;
   return v.toFixed(0);
+}
+
+/** Rótulo de valor puxado pra fora do segmento da barra empilhada, com uma linha indicadora,
+ *  pra não ficar texto branco espremido dentro de fatias finas. */
+function RotuloComSeta(props: any) {
+  const { x, y, width, height, value } = props;
+  if (!value || height < 2) return null;
+  const inicioX = x + width;
+  const centroY = y + height / 2;
+  const fimX = inicioX + 14;
+  return (
+    <g>
+      <line x1={inicioX} y1={centroY} x2={fimX} y2={centroY} stroke="#3a2e1f" strokeWidth={1} />
+      <circle cx={fimX} cy={centroY} r={1.5} fill="#3a2e1f" />
+      <text x={fimX + 4} y={centroY} fontSize={10} dominantBaseline="middle" fill="#3a2e1f">
+        {valorCompacto(value)}
+      </text>
+    </g>
+  );
 }
 
 export default function TransparenciaPage() {
@@ -68,12 +88,12 @@ export default function TransparenciaPage() {
   const pctDespesa = totalOrcadoDespesa > 0 ? (totalRealizadoDespesa / totalOrcadoDespesa) * 100 : 0;
 
   const pizzaReceita = [
-    { name: 'Realizado', value: pctReceita },
-    { name: 'Orçado', value: Math.max(0, 100 - pctReceita) },
+    { name: 'Realizado', value: pctReceita, valor: totalRealizadoReceita },
+    { name: 'Orçado', value: Math.max(0, 100 - pctReceita), valor: Math.max(0, totalOrcadoReceita - totalRealizadoReceita) },
   ];
   const pizzaDespesa = [
-    { name: 'Realizado', value: pctDespesa },
-    { name: 'Orçado', value: Math.max(0, 100 - pctDespesa) },
+    { name: 'Realizado', value: pctDespesa, valor: totalRealizadoDespesa },
+    { name: 'Orçado', value: Math.max(0, 100 - pctDespesa), valor: Math.max(0, totalOrcadoDespesa - totalRealizadoDespesa) },
   ];
 
   const dadosMensaisReceita = NOMES_MESES.slice(0, ateMesIndex + 1).map((mes, i) => {
@@ -194,6 +214,7 @@ export default function TransparenciaPage() {
                 <Cell fill="#3f7d4f" />
                 <Cell fill="#7a1f1f" />
               </Pie>
+              <Tooltip formatter={(_: number, __: string, item: any) => formatBRL(item.payload.valor)} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -206,6 +227,7 @@ export default function TransparenciaPage() {
                 <Cell fill="#3f7d4f" />
                 <Cell fill="#7a1f1f" />
               </Pie>
+              <Tooltip formatter={(_: number, __: string, item: any) => formatBRL(item.payload.valor)} />
               <Legend />
             </PieChart>
           </ResponsiveContainer>
@@ -215,15 +237,15 @@ export default function TransparenciaPage() {
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Receita por grupo — evolução mensal</h3>
         <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={dadosMensaisReceita}>
+          <BarChart data={dadosMensaisReceita} margin={{ top: 10, right: 50, left: 0, bottom: 0 }} barCategoryGap="40%">
             <CartesianGrid strokeDasharray="3 3" stroke="#e2d6c3" />
             <XAxis dataKey="mes" fontSize={12} />
             <YAxis fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(v: number) => formatBRL(v)} />
             <Legend />
             {gruposReceita.map((g, i) => (
-              <Bar key={g.grupo} dataKey={g.grupo} stackId="r" fill={CORES_RECEITA[i % CORES_RECEITA.length]}>
-                <LabelList dataKey={g.grupo} position="inside" formatter={valorCompacto} fill="#fff" fontSize={9} fontWeight={700} />
+              <Bar key={g.grupo} dataKey={g.grupo} stackId="r" fill={CORES_RECEITA[i % CORES_RECEITA.length]} barSize={22}>
+                <LabelList dataKey={g.grupo} content={RotuloComSeta} />
               </Bar>
             ))}
           </BarChart>
@@ -233,15 +255,15 @@ export default function TransparenciaPage() {
       <div className="card">
         <h3 style={{ marginTop: 0 }}>Despesa por grupo — evolução mensal</h3>
         <ResponsiveContainer width="100%" height={280}>
-          <BarChart data={dadosMensaisDespesa}>
+          <BarChart data={dadosMensaisDespesa} margin={{ top: 10, right: 50, left: 0, bottom: 0 }} barCategoryGap="40%">
             <CartesianGrid strokeDasharray="3 3" stroke="#e2d6c3" />
             <XAxis dataKey="mes" fontSize={12} />
             <YAxis fontSize={12} tickFormatter={(v) => `${(v / 1000).toFixed(0)}k`} />
             <Tooltip formatter={(v: number) => formatBRL(v)} />
             <Legend />
             {gruposDespesa.map((g, i) => (
-              <Bar key={g.grupo} dataKey={g.grupo} stackId="d" fill={CORES_DESPESA[i % CORES_DESPESA.length]}>
-                <LabelList dataKey={g.grupo} position="inside" formatter={valorCompacto} fill="#fff" fontSize={9} fontWeight={700} />
+              <Bar key={g.grupo} dataKey={g.grupo} stackId="d" fill={CORES_DESPESA[i % CORES_DESPESA.length]} barSize={22}>
+                <LabelList dataKey={g.grupo} content={RotuloComSeta} />
               </Bar>
             ))}
           </BarChart>
