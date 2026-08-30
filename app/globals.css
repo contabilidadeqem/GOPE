@@ -161,8 +161,10 @@ body {
 /* ---------- Tabelas ---------- */
 table { width: 100%; border-collapse: collapse; font-size: 13px; }
 th { text-align: left; padding: 9px 10px; border-bottom: 2px solid var(--dourado); font-size: 11px; text-transform: uppercase; opacity: 0.7; white-space: nowrap; }
-td { padding: 9px 10px; border-bottom: 1px solid var(--linha-borda); }
+td { padding: 9px 10px; border-bottom: 1px solid var(--linha-borda); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 tbody tr:hover { background: #fbf6ec; }
+
+.tabela-compacta th, .tabela-compacta td { padding: 6px 6px; font-size: 11px; }
 
 .progress-bar-track {
   width: 100%;

@@ -7,12 +7,12 @@ const ANO = 2026;
 
 // Larguras fixas e idênticas nas duas tabelas (Receita e Despesa), pra ficarem sempre alinhadas
 const COL = {
-  codigo: 64,
-  conta: 260,
-  orcado: 110,
-  mes: 66,
-  realizado: 100,
-  pct: 48,
+  codigo: 50,
+  conta: 200,
+  orcado: 90,
+  mes: 88,
+  realizado: 95,
+  pct: 38,
 };
 
 export default function DashboardPage() {
@@ -72,7 +72,7 @@ export default function DashboardPage() {
     return (
       <div className="card" style={{ overflowX: 'auto' }}>
         <h3 style={{ marginTop: 0 }}>{titulo} — visão anual {ANO}</h3>
-        <table style={{ width: larguraTotal, tableLayout: 'fixed' }}>
+        <table className="tabela-compacta" style={{ width: larguraTotal, tableLayout: 'fixed' }}>
           <colgroup>
             <col style={{ width: COL.codigo }} />
             <col style={{ width: COL.conta }} />
