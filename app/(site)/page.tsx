@@ -8,7 +8,7 @@ const ANO = 2026;
 // Larguras fixas e idênticas nas duas tabelas (Receita e Despesa), pra ficarem sempre alinhadas
 const COL = {
   codigo: 50,
-  conta: 200,
+  conta: 260,
   orcado: 90,
   mes: 88,
   realizado: 95,
@@ -100,7 +100,7 @@ export default function DashboardPage() {
                 return (
                   <tr key={`g-${l.grupo}`} style={{ background: 'var(--bege-medio)', fontWeight: 700 }}>
                     <td>{l.grupoCodigo}</td>
-                    <td style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{l.grupo}</td>
+                    <td style={{ whiteSpace: 'normal', wordBreak: 'break-word' }}>{l.grupo}</td>
                     <td style={{ borderRight: '2px solid var(--dourado)' }}>{formatBRL(l.orcado)}</td>
                     {l.porMes.map((v, i) => (
                       <td key={i} style={{ opacity: i > ateMesIndex ? 0.35 : 1 }}>
@@ -117,7 +117,7 @@ export default function DashboardPage() {
                 <tr key={l.conta.id}>
                   <td style={{ opacity: 0.75 }}>{l.conta.codigo}</td>
                   <td style={{
-                    paddingLeft: 26, opacity: 0.85, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                    paddingLeft: 26, opacity: 0.85, whiteSpace: 'normal', wordBreak: 'break-word',
                   }}>
                     {l.conta.descricao}
                   </td>

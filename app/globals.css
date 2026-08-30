@@ -164,7 +164,7 @@ th { text-align: left; padding: 9px 10px; border-bottom: 2px solid var(--dourado
 td { padding: 9px 10px; border-bottom: 1px solid var(--linha-borda); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 tbody tr:hover { background: #fbf6ec; }
 
-.tabela-compacta th, .tabela-compacta td { padding: 6px 6px; font-size: 11px; }
+.tabela-compacta th, .tabela-compacta td { padding: 6px 6px; font-size: 11px; vertical-align: top; }
 
 .progress-bar-track {
   width: 100%;
