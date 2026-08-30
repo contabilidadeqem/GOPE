@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { renderToBuffer } from '@react-pdf/renderer';
 import React from 'react';
 import { supabaseServer } from '@/lib/supabase';
-import { montarMatrizAnual } from '@/lib/reportData';
+import { montarLinhasCombinadas } from '@/lib/reportData';
 import { RelatorioPDF } from '@/lib/RelatorioPDF';
 
 export const runtime = 'nodejs';
@@ -32,8 +32,8 @@ export async function GET(req: NextRequest) {
   const contasDespesa = (contas ?? []).filter((c) => c.tipo === 'despesa');
   const contasReceita = (contas ?? []).filter((c) => c.tipo === 'receita');
 
-  const linhasDespesa = montarMatrizAnual(contasDespesa as any, (despesas ?? []) as any, ateMes);
-  const linhasReceita = montarMatrizAnual(contasReceita as any, (receitas ?? []) as any, ateMes);
+  const linhasDespesa = montarLinhasCombinadas(contasDespesa as any, (despesas ?? []) as any, ateMes);
+  const linhasReceita = montarLinhasCombinadas(contasReceita as any, (receitas ?? []) as any, ateMes);
 
   const totalOrcadoDespesa = contasDespesa.reduce((s, c) => s + Number(c.valor_orcado_2026), 0);
   const totalOrcadoReceita = contasReceita.reduce((s, c) => s + Number(c.valor_orcado_2026), 0);

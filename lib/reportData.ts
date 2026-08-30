@@ -95,3 +95,32 @@ export function montarMatrizPorGrupo(
   }
   return resultado.sort((a, b) => a.grupoCodigo.localeCompare(b.grupoCodigo));
 }
+
+export type LinhaCombinada =
+  | { tipo: 'sintetica'; grupo: string; grupoCodigo: string; porMes: number[]; realizadoAteMes: number; orcado: number }
+  | { tipo: 'analitica'; conta: Conta; porMes: number[]; realizadoAteMes: number };
+
+/**
+ * Junta sintéticas e analíticas numa única lista, na ordem: linha do grupo (em negrito),
+ * seguida das contas que pertencem a ele — igual ao balancete em PDF tradicional.
+ */
+export function montarLinhasCombinadas(
+  contas: Conta[],
+  lancamentos: Lancamento[],
+  ateMesIndex: number
+): LinhaCombinada[] {
+  const grupos = montarMatrizPorGrupo(contas, lancamentos, ateMesIndex);
+  const analiticas = montarMatrizAnual(contas, lancamentos, ateMesIndex);
+
+  const linhas: LinhaCombinada[] = [];
+  for (const g of grupos) {
+    linhas.push({ tipo: 'sintetica', grupo: g.grupo, grupoCodigo: g.grupoCodigo, porMes: g.porMes, realizadoAteMes: g.realizadoAteMes, orcado: g.orcado });
+    const membros = analiticas
+      .filter((a) => (a.conta.grupo || a.conta.descricao) === g.grupo)
+      .sort((a, b) => a.conta.codigo.localeCompare(b.conta.codigo));
+    for (const m of membros) {
+      linhas.push({ tipo: 'analitica', conta: m.conta, porMes: m.porMes, realizadoAteMes: m.realizadoAteMes });
+    }
+  }
+  return linhas;
+}

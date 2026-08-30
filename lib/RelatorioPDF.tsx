@@ -1,6 +1,6 @@
 import React from 'react';
 import { Document, Page, Text, View, StyleSheet, Svg, Rect, Line, Text as SvgText } from '@react-pdf/renderer';
-import { NOMES_MESES, formatBRL, type LinhaAnual } from './reportData';
+import { NOMES_MESES, formatBRL, type LinhaCombinada } from './reportData';
 import { CapaPaisagem, CabecalhoPagina, paginaBaseStyles, CORES, BlocoConfiabilidadeAssinaturas } from './pdfShared';
 
 const styles = StyleSheet.create({
@@ -26,7 +26,7 @@ const styles = StyleSheet.create({
   kpiValor: { fontSize: 16, fontWeight: 700, marginTop: 4 },
 });
 
-function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: string; linhas: LinhaAnual[]; ateMesIndex: number; totalOrcado: number }) {
+function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: string; linhas: LinhaCombinada[]; ateMesIndex: number; totalOrcado: number }) {
   return (
     <View>
       <Text style={{ fontSize: 11, fontWeight: 700, marginBottom: 6 }}>{titulo}</Text>
@@ -41,19 +41,26 @@ function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: st
           <Text style={styles.thTotal}>Até {NOMES_MESES[ateMesIndex]}</Text>
           <Text style={styles.thPct}>%</Text>
         </View>
-        {linhas.map(({ conta, porMes, realizadoAteMes }) => {
-          const pct = Number(conta.valor_orcado_2026) > 0 ? (realizadoAteMes / Number(conta.valor_orcado_2026)) * 100 : 0;
+        {linhas.map((l) => {
+          const codigo = l.tipo === 'sintetica' ? l.grupoCodigo : l.conta.codigo;
+          const descricao = l.tipo === 'sintetica' ? l.grupo : l.conta.descricao;
+          const orcado = l.tipo === 'sintetica' ? l.orcado : Number(l.conta.valor_orcado_2026);
+          const pct = orcado > 0 ? (l.realizadoAteMes / orcado) * 100 : 0;
+          const chaveLinha = l.tipo === 'sintetica' ? `g-${l.grupo}` : l.conta.id;
+          const estiloLinha = l.tipo === 'sintetica' ? [styles.tr, { backgroundColor: '#f3e9d4' }] : styles.tr;
           return (
-            <View style={styles.tr} key={conta.id} wrap={false}>
-              <Text style={styles.tdCodigo}>{conta.codigo}</Text>
-              <Text style={styles.tdConta}>{conta.descricao}</Text>
-              <Text style={styles.tdOrcado}>{formatBRL(Number(conta.valor_orcado_2026))}</Text>
-              {porMes.map((v, i) => (
-                <Text key={i} style={[styles.tdMes, { backgroundColor: i % 2 === 0 ? CORES.mesA : CORES.mesB }]}>
+            <View style={estiloLinha as any} key={chaveLinha} wrap={false}>
+              <Text style={[styles.tdCodigo, (l.tipo === 'sintetica' ? { fontWeight: 700 } : {})]}>{codigo}</Text>
+              <Text style={[styles.tdConta, l.tipo === 'sintetica' ? { fontWeight: 700 } : { paddingLeft: 10, opacity: 0.85 }]}>
+                {descricao}
+              </Text>
+              <Text style={[styles.tdOrcado, (l.tipo === 'sintetica' ? { fontWeight: 700 } : {})]}>{formatBRL(orcado)}</Text>
+              {l.porMes.map((v, i) => (
+                <Text key={i} style={[styles.tdMes, { backgroundColor: i % 2 === 0 ? CORES.mesA : CORES.mesB }, (l.tipo === 'sintetica' ? { fontWeight: 700 } : {})]}>
                   {i > ateMesIndex ? '—' : (v > 0 ? formatBRL(v) : '—')}
                 </Text>
               ))}
-              <Text style={styles.tdTotal}>{formatBRL(realizadoAteMes)}</Text>
+              <Text style={[styles.tdTotal, (l.tipo === 'sintetica' ? { fontWeight: 700 } : {})]}>{formatBRL(l.realizadoAteMes)}</Text>
               <Text style={styles.tdPct}>{pct.toFixed(0)}%</Text>
             </View>
           );
@@ -63,11 +70,15 @@ function TabelaMensal({ titulo, linhas, ateMesIndex, totalOrcado }: { titulo: st
           <Text style={[styles.tdConta, { fontWeight: 700 }]}>TOTAL</Text>
           <Text style={styles.tdOrcado}>{formatBRL(totalOrcado)}</Text>
           {Array.from({ length: 12 }).map((_, i) => (
-            <Text key={i} style={styles.tdMes}>{i > ateMesIndex ? '—' : formatBRL(linhas.reduce((s, l) => s + l.porMes[i], 0))}</Text>
+            <Text key={i} style={styles.tdMes}>
+              {i > ateMesIndex ? '—' : formatBRL(linhas.filter((l) => l.tipo === 'sintetica').reduce((s, l) => s + l.porMes[i], 0))}
+            </Text>
           ))}
-          <Text style={[styles.tdTotal, { fontWeight: 700 }]}>{formatBRL(linhas.reduce((s, l) => s + l.realizadoAteMes, 0))}</Text>
+          <Text style={[styles.tdTotal, { fontWeight: 700 }]}>
+            {formatBRL(linhas.filter((l) => l.tipo === 'sintetica').reduce((s, l) => s + l.realizadoAteMes, 0))}
+          </Text>
           <Text style={styles.tdPct}>
-            {totalOrcado > 0 ? ((linhas.reduce((s, l) => s + l.realizadoAteMes, 0) / totalOrcado) * 100).toFixed(0) : 0}%
+            {totalOrcado > 0 ? ((linhas.filter((l) => l.tipo === 'sintetica').reduce((s, l) => s + l.realizadoAteMes, 0) / totalOrcado) * 100).toFixed(0) : 0}%
           </Text>
         </View>
       </View>
@@ -169,19 +180,21 @@ export function RelatorioPDF({
 }: {
   ano: number;
   ateMesIndex: number;
-  linhasReceita: LinhaAnual[];
-  linhasDespesa: LinhaAnual[];
+  linhasReceita: LinhaCombinada[];
+  linhasDespesa: LinhaCombinada[];
   totalOrcadoReceita: number;
   totalOrcadoDespesa: number;
 }) {
-  const totalRealizadoReceita = linhasReceita.reduce((s, l) => s + l.realizadoAteMes, 0);
-  const totalRealizadoDespesa = linhasDespesa.reduce((s, l) => s + l.realizadoAteMes, 0);
+  const sinteticasReceita = linhasReceita.filter((l) => l.tipo === 'sintetica');
+  const sinteticasDespesa = linhasDespesa.filter((l) => l.tipo === 'sintetica');
+  const totalRealizadoReceita = sinteticasReceita.reduce((s, l) => s + l.realizadoAteMes, 0);
+  const totalRealizadoDespesa = sinteticasDespesa.reduce((s, l) => s + l.realizadoAteMes, 0);
   const saldo = totalRealizadoReceita - totalRealizadoDespesa;
 
   const dadosGrafico = NOMES_MESES.slice(0, ateMesIndex + 1).map((mes, i) => ({
     mes,
-    receita: linhasReceita.reduce((s, l) => s + l.porMes[i], 0),
-    despesa: linhasDespesa.reduce((s, l) => s + l.porMes[i], 0),
+    receita: sinteticasReceita.reduce((s, l) => s + l.porMes[i], 0),
+    despesa: sinteticasDespesa.reduce((s, l) => s + l.porMes[i], 0),
   }));
 
   return (
