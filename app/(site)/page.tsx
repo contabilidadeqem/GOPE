@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import { montarMatrizAnual, NOMES_MESES, formatBRL, type Conta, type Lancamento } from '@/lib/reportData';
+import { montarMatrizPorGrupo, montarMatrizAnual, NOMES_MESES, formatBRL, type Conta, type Lancamento, type LinhaGrupo, type LinhaAnual } from '@/lib/reportData';
 
 const ANO = 2026;
 
@@ -32,8 +32,13 @@ export default function DashboardPage() {
   const contasDespesa = useMemo(() => contas.filter((c) => c.tipo === 'despesa'), [contas]);
   const contasReceita = useMemo(() => contas.filter((c) => c.tipo === 'receita'), [contas]);
 
-  const matrizDespesa = useMemo(() => montarMatrizAnual(contasDespesa, despesas, ateMesIndex), [contasDespesa, despesas, ateMesIndex]);
-  const matrizReceita = useMemo(() => montarMatrizAnual(contasReceita, receitas, ateMesIndex), [contasReceita, receitas, ateMesIndex]);
+  // Contas sintéticas: agrupadas por "grupo" consolidado (ex: RECEITAS ORDINÁRIAS)
+  const matrizDespesa = useMemo(() => montarMatrizPorGrupo(contasDespesa, despesas, ateMesIndex), [contasDespesa, despesas, ateMesIndex]);
+  const matrizReceita = useMemo(() => montarMatrizPorGrupo(contasReceita, receitas, ateMesIndex), [contasReceita, receitas, ateMesIndex]);
+
+  // Contas analíticas: uma linha por conta de fato (o detalhamento por trás de cada grupo)
+  const matrizDespesaAnalitica = useMemo(() => montarMatrizAnual(contasDespesa, despesas, ateMesIndex), [contasDespesa, despesas, ateMesIndex]);
+  const matrizReceitaAnalitica = useMemo(() => montarMatrizAnual(contasReceita, receitas, ateMesIndex), [contasReceita, receitas, ateMesIndex]);
 
   const totalRealizadoReceita = matrizReceita.reduce((s, l) => s + l.realizadoAteMes, 0);
   const totalRealizadoDespesa = matrizDespesa.reduce((s, l) => s + l.realizadoAteMes, 0);
@@ -56,7 +61,7 @@ export default function DashboardPage() {
     }
   }
 
-  function TabelaMatriz({ linhas, tipo }: { linhas: ReturnType<typeof montarMatrizAnual>; tipo: 'receita' | 'despesa' }) {
+  function TabelaMatriz({ linhas, tipo }: { linhas: LinhaGrupo[]; tipo: 'receita' | 'despesa' }) {
     return (
       <div className="card" style={{ overflowX: 'auto' }}>
         <h3 style={{ marginTop: 0 }}>{tipo === 'receita' ? 'Receitas' : 'Despesas'} — visão anual {ANO}</h3>
@@ -67,7 +72,76 @@ export default function DashboardPage() {
               <th>Conta</th>
               <th style={{ borderRight: '2px solid var(--dourado)' }}>Orçado {ANO}</th>
               {NOMES_MESES.map((m, i) => (
-                <th key={m} style={{ opacity: i > ateMesIndex ? 0.35 : 1 }}>{m}</th>
+                <th key={m} style={{ opacity: i > ateMesIndex ? 0.35 : 1, background: i % 2 === 0 ? '#fbf6ec' : '#f1e2c6' }}>{m}</th>
+              ))}
+              <th style={{ borderLeft: '2px solid var(--dourado)' }}>Realizado até {NOMES_MESES[ateMesIndex]}</th>
+              <th>%</th>
+            </tr>
+          </thead>
+          <tbody>
+            {linhas.map((l) => {
+              const pct = l.orcado > 0 ? (l.realizadoAteMes / l.orcado) * 100 : 0;
+              return (
+                <tr key={l.grupo}>
+                  <td>{l.grupoCodigo}</td>
+                  <td style={{ whiteSpace: 'nowrap' }}>{l.grupo}</td>
+                  <td style={{ borderRight: '2px solid var(--dourado)', fontWeight: 700 }}>{formatBRL(l.orcado)}</td>
+                  {l.porMes.map((v, i) => (
+                    <td key={i} style={{
+                      opacity: i > ateMesIndex ? 0.35 : 1,
+                      color: v > 0 ? 'inherit' : '#999',
+                      background: i % 2 === 0 ? '#fbf6ec' : '#f1e2c6',
+                    }}>
+                      {i > ateMesIndex ? '—' : (v > 0 ? formatBRL(v) : '—')}
+                    </td>
+                  ))}
+                  <td style={{ borderLeft: '2px solid var(--dourado)', fontWeight: 700 }}>{formatBRL(l.realizadoAteMes)}</td>
+                  <td>{pct.toFixed(0)}%</td>
+                </tr>
+              );
+            })}
+          </tbody>
+          <tfoot>
+            <tr style={{ background: 'var(--bege-medio)', fontWeight: 700 }}>
+              <td></td>
+              <td>TOTAL</td>
+              <td style={{ borderRight: '2px solid var(--dourado)' }}>
+                {formatBRL(linhas.reduce((s, l) => s + l.orcado, 0))}
+              </td>
+              {Array.from({ length: 12 }).map((_, i) => (
+                <td key={i} style={{ opacity: i > ateMesIndex ? 0.35 : 1 }}>
+                  {i > ateMesIndex ? '—' : formatBRL(linhas.reduce((s, l) => s + l.porMes[i], 0))}
+                </td>
+              ))}
+              <td style={{ borderLeft: '2px solid var(--dourado)' }}>
+                {formatBRL(linhas.reduce((s, l) => s + l.realizadoAteMes, 0))}
+              </td>
+              <td>
+                {(() => {
+                  const totalOrcado = linhas.reduce((s, l) => s + l.orcado, 0);
+                  const totalRealizado = linhas.reduce((s, l) => s + l.realizadoAteMes, 0);
+                  return totalOrcado > 0 ? `${((totalRealizado / totalOrcado) * 100).toFixed(0)}%` : '0%';
+                })()}
+              </td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+    );
+  }
+
+  function TabelaAnalitica({ linhas, tipo }: { linhas: LinhaAnual[]; tipo: 'receita' | 'despesa' }) {
+    return (
+      <div className="card" style={{ overflowX: 'auto' }}>
+        <h3 style={{ marginTop: 0 }}>{tipo === 'receita' ? 'Receitas' : 'Despesas'} — detalhamento por conta (analítico)</h3>
+        <table style={{ minWidth: 1250 }}>
+          <thead>
+            <tr>
+              <th>Código</th>
+              <th>Conta</th>
+              <th style={{ borderRight: '2px solid var(--dourado)' }}>Orçado {ANO}</th>
+              {NOMES_MESES.map((m, i) => (
+                <th key={m} style={{ opacity: i > ateMesIndex ? 0.35 : 1, background: i % 2 === 0 ? '#fbf6ec' : '#f1e2c6' }}>{m}</th>
               ))}
               <th style={{ borderLeft: '2px solid var(--dourado)' }}>Realizado até {NOMES_MESES[ateMesIndex]}</th>
               <th>%</th>
@@ -82,8 +156,12 @@ export default function DashboardPage() {
                   <td style={{ whiteSpace: 'nowrap' }}>{conta.descricao}</td>
                   <td style={{ borderRight: '2px solid var(--dourado)', fontWeight: 700 }}>{formatBRL(Number(conta.valor_orcado_2026))}</td>
                   {porMes.map((v, i) => (
-                    <td key={i} style={{ opacity: i > ateMesIndex ? 0.35 : 1, color: v > 0 ? 'inherit' : '#999' }}>
-                      {v > 0 ? formatBRL(v) : '—'}
+                    <td key={i} style={{
+                      opacity: i > ateMesIndex ? 0.35 : 1,
+                      color: v > 0 ? 'inherit' : '#999',
+                      background: i % 2 === 0 ? '#fbf6ec' : '#f1e2c6',
+                    }}>
+                      {i > ateMesIndex ? '—' : (v > 0 ? formatBRL(v) : '—')}
                     </td>
                   ))}
                   <td style={{ borderLeft: '2px solid var(--dourado)', fontWeight: 700 }}>{formatBRL(realizadoAteMes)}</td>
@@ -92,30 +170,6 @@ export default function DashboardPage() {
               );
             })}
           </tbody>
-          <tfoot>
-            <tr style={{ background: 'var(--bege-medio)', fontWeight: 700 }}>
-              <td></td>
-              <td>TOTAL</td>
-              <td style={{ borderRight: '2px solid var(--dourado)' }}>
-                {formatBRL(linhas.reduce((s, l) => s + Number(l.conta.valor_orcado_2026), 0))}
-              </td>
-              {Array.from({ length: 12 }).map((_, i) => (
-                <td key={i} style={{ opacity: i > ateMesIndex ? 0.35 : 1 }}>
-                  {formatBRL(linhas.reduce((s, l) => s + l.porMes[i], 0))}
-                </td>
-              ))}
-              <td style={{ borderLeft: '2px solid var(--dourado)' }}>
-                {formatBRL(linhas.reduce((s, l) => s + l.realizadoAteMes, 0))}
-              </td>
-              <td>
-                {(() => {
-                  const totalOrcado = linhas.reduce((s, l) => s + Number(l.conta.valor_orcado_2026), 0);
-                  const totalRealizado = linhas.reduce((s, l) => s + l.realizadoAteMes, 0);
-                  return totalOrcado > 0 ? `${((totalRealizado / totalOrcado) * 100).toFixed(0)}%` : '0%';
-                })()}
-              </td>
-            </tr>
-          </tfoot>
         </table>
       </div>
     );
@@ -162,7 +216,9 @@ export default function DashboardPage() {
           </div>
 
           <TabelaMatriz linhas={matrizReceita} tipo="receita" />
+          <TabelaAnalitica linhas={matrizReceitaAnalitica} tipo="receita" />
           <TabelaMatriz linhas={matrizDespesa} tipo="despesa" />
+          <TabelaAnalitica linhas={matrizDespesaAnalitica} tipo="despesa" />
         </>
       )}
     </div>
