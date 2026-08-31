@@ -40,14 +40,29 @@ function fatiaPath(cx: number, cy: number, r: number, anguloInicio: number, angu
   return `M ${cx} ${cy} L ${inicio.x} ${inicio.y} A ${r} ${r} 0 ${largeArc} 0 ${fim.x} ${fim.y} Z`;
 }
 
-function PizzaOrcadoRealizado({ pctRealizado, titulo }: { pctRealizado: number; titulo: string }) {
+function textoNaFatia(cx: number, cy: number, r: number, anguloInicio: number, anguloFim: number, texto: string) {
+  if (anguloFim - anguloInicio < 14) return null; // fatia mínima demais para caber o texto
+  const anguloMeio = (anguloInicio + anguloFim) / 2;
+  const raioTexto = r * 0.6;
+  const p = pontoNoCirculo(cx, cy, raioTexto, anguloMeio);
+  return (
+    <SvgText x={p.x} y={p.y} style={{ fontSize: 7 }} textAnchor="middle" fill="#fff">
+      {texto}
+    </SvgText>
+  );
+}
+
+function PizzaOrcadoRealizado({ pctRealizado, titulo, valorRealizado, valorOrcado }: { pctRealizado: number; titulo: string; valorRealizado: number; valorOrcado: number }) {
   const cx = 55, cy = 55, r = 50;
   const anguloRealizado = Math.min(360, Math.max(0, (pctRealizado / 100) * 360));
+  const valorRestante = Math.max(0, valorOrcado - valorRealizado);
   return (
     <View style={{ alignItems: 'center' }}>
       <Svg width={110} height={110}>
         <Path d={fatiaPath(cx, cy, r, 0, anguloRealizado || 0.01)} fill={CORES.verde} />
         <Path d={fatiaPath(cx, cy, r, anguloRealizado, 360)} fill={CORES.vermelho} />
+        {textoNaFatia(cx, cy, r, 0, anguloRealizado, formatBRL(valorRealizado))}
+        {textoNaFatia(cx, cy, r, anguloRealizado, 360, formatBRL(valorRestante))}
       </Svg>
       <Text style={{ fontSize: 9, fontWeight: 700, marginTop: 6 }}>{titulo}</Text>
       <View style={{ flexDirection: 'row', gap: 10, marginTop: 4 }}>
@@ -205,8 +220,8 @@ export function TransparenciaPDF({
       <Page size="A4" orientation="landscape" style={paginaBaseStyles.page}>
         <CabecalhoPagina titulo="Demonstração Financeira Consolidada" sub={`Grande Oriente de Pernambuco · até ${NOMES_MESES[ateMesIndex]}/${ano}`} />
         <View style={{ flexDirection: 'row', gap: 30, marginBottom: 20 }}>
-          <PizzaOrcadoRealizado pctRealizado={pctReceita} titulo="Receita" />
-          <PizzaOrcadoRealizado pctRealizado={pctDespesa} titulo="Despesa" />
+          <PizzaOrcadoRealizado pctRealizado={pctReceita} titulo="Receita" valorRealizado={totalRealizadoReceita} valorOrcado={totalOrcadoReceita} />
+          <PizzaOrcadoRealizado pctRealizado={pctDespesa} titulo="Despesa" valorRealizado={totalRealizadoDespesa} valorOrcado={totalOrcadoDespesa} />
         </View>
 
         <Text style={{ fontSize: 10, fontWeight: 700, marginBottom: 6 }}>Receita por grupo — evolução mensal</Text>
