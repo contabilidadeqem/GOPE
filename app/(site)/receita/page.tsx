@@ -92,7 +92,7 @@ export default function ReceitaPage() {
                 <tr key={c.id}>
                   <td>{c.codigo}</td>
                   <td>{c.descricao}</td>
-                  <td>{Number(c.valor_orcado_2026).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                  <td>{Number(c.valor_orcado_2026).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                   <td style={{ width: 140 }}>
                     <CurrencyInput value={valores[c.id] ?? 0} onChange={(v) => setValores((val) => ({ ...val, [c.id]: v }))} />
                   </td>

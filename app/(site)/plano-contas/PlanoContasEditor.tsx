@@ -42,6 +42,8 @@ export default function PlanoContasEditor() {
   const [editandoId, setEditandoId] = useState<string | null>(null);
   const [formEdicao, setFormEdicao] = useState<FormConta | null>(null);
   const [salvandoEdicao, setSalvandoEdicao] = useState(false);
+  const [excluindoId, setExcluindoId] = useState<string | null>(null);
+  const [avisoExclusao, setAvisoExclusao] = useState('');
 
   async function carregar() {
     setCarregando(true);
@@ -124,6 +126,20 @@ export default function PlanoContasEditor() {
     cancelarEdicao();
   }
 
+  async function excluirConta(c: Conta) {
+    if (!confirm(`Excluir a conta "${c.codigo} — ${c.descricao}"?`)) return;
+    setExcluindoId(c.id);
+    setAvisoExclusao('');
+    const res = await fetch(`/api/plano-contas?id=${c.id}`, { method: 'DELETE' }).then((r) => r.json());
+    if (res.error) {
+      setAvisoExclusao(`Não foi possível excluir: ${res.error}`);
+    } else if (res.arquivada) {
+      setAvisoExclusao(`"${c.descricao}" já tem lançamentos, então foi arquivada em vez de apagada — some das listas, mas o histórico continua íntegro.`);
+    }
+    await carregar();
+    setExcluindoId(null);
+  }
+
   const receitas = contas.filter((c) => c.tipo === 'receita');
   const despesas = contas.filter((c) => c.tipo === 'despesa');
 
@@ -149,10 +165,15 @@ export default function PlanoContasEditor() {
                   <tr key={c.id}>
                     <td>{c.codigo}</td>
                     <td>{c.descricao}</td>
-                    <td>{Number(c.valor_orcado_2026).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td>
+                    <td>{Number(c.valor_orcado_2026).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: 0, maximumFractionDigits: 0 })}</td>
                     <td style={{ opacity: 0.7 }}>{c.grupo || '—'}</td>
                     <td>
-                      <button className="btn-secondary" onClick={() => iniciarEdicao(c)}>Editar</button>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button className="btn-secondary" onClick={() => iniciarEdicao(c)}>Editar</button>
+                        <button className="btn-secondary" disabled={excluindoId === c.id} onClick={() => excluirConta(c)}>
+                          {excluindoId === c.id ? 'Excluindo…' : 'Excluir'}
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -198,6 +219,15 @@ export default function PlanoContasEditor() {
     <div>
       <div className="page-title">Plano de Contas</div>
       <div className="page-subtitle">Alimente aqui o valor orçado no ano de cada conta — usado em todo o sistema e nos PDFs exportados</div>
+
+      {avisoExclusao && (
+        <div style={{
+          background: '#faf3e6', border: '1px solid var(--dourado)', borderRadius: 8,
+          padding: '10px 16px', marginBottom: 16, fontSize: 13,
+        }}>
+          {avisoExclusao}
+        </div>
+      )}
 
       <div className="card">
         <div className="toolbar">

@@ -72,3 +72,30 @@ export async function POST(req: NextRequest) {
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ conta: data });
 }
+
+// DELETE /api/plano-contas?id=...
+// Se a conta nunca teve lançamento, apaga de verdade. Se já tem histórico, apenas
+// arquiva (ativo=false) — some das listas e formulários, mas preserva os lançamentos já feitos.
+export async function DELETE(req: NextRequest) {
+  const supabase = supabaseServer();
+  const { searchParams } = new URL(req.url);
+  const id = searchParams.get('id');
+  if (!id) return NextResponse.json({ error: 'id é obrigatório' }, { status: 400 });
+
+  const [{ count: countDespesa }, { count: countReceita }] = await Promise.all([
+    supabase.from('lancamentos_despesa').select('id', { count: 'exact', head: true }).eq('conta_id', id),
+    supabase.from('lancamentos_receita').select('id', { count: 'exact', head: true }).eq('conta_id', id),
+  ]);
+
+  const temHistorico = (countDespesa ?? 0) > 0 || (countReceita ?? 0) > 0;
+
+  if (temHistorico) {
+    const { error: erroArquivar } = await supabase.from('plano_contas').update({ ativo: false }).eq('id', id);
+    if (erroArquivar) return NextResponse.json({ error: erroArquivar.message }, { status: 500 });
+    return NextResponse.json({ ok: true, arquivada: true });
+  }
+
+  const { error: erroExcluir } = await supabase.from('plano_contas').delete().eq('id', id);
+  if (erroExcluir) return NextResponse.json({ error: erroExcluir.message }, { status: 500 });
+  return NextResponse.json({ ok: true, arquivada: false });
+}
